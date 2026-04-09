@@ -1,0 +1,119 @@
+
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+
+
+/* ─── Design Tokens ─────────────────────────────────────────── */
+:root {
+  /* Dark Mode (default) */
+  --bg-base:        #0D0D0D;
+  --bg-surface:     #141414;
+  --bg-elevated:    #1C1C1C;
+  --accent-primary: #AAFF00;
+  --accent-secondary: #00FFD1;
+  --accent-danger:  #FF4444;
+  --accent-warning: #FFB800;
+  --text-primary:   #F2F2F2;
+  --text-muted:     #666666;
+  --border:         #2A2A2A;
+
+  /* Bar states */
+  --bar-default:    #2A2A2A;
+  --bar-comparing:  #FF4444;
+  --bar-swapping:   #AAFF00;
+  --bar-sorted:     #FFB800;
+  --bar-pivot:      #00FFD1;
+  --bar-found:      #AAFF00;
+  --bar-searching:  #00FFD1;
+}
+
+[data-theme="light"] {
+  --bg-base:        #FAFAF7;
+  --bg-surface:     #FFFFFF;
+  --bg-elevated:    #F0F0EB;
+  --accent-primary: #0A4A5C;
+  --accent-secondary: #0891B2;
+  --accent-danger:  #DC2626;
+  --accent-warning: #D97706;
+  --text-primary:   #0D0D0D;
+  --text-muted:     #888888;
+  --border:         #E5E5E0;
+
+  --bar-default:    #D4D4CE;
+  --bar-comparing:  #DC2626;
+  --bar-swapping:   #0A4A5C;
+  --bar-sorted:     #D97706;
+  --bar-pivot:      #0891B2;
+  --bar-found:      #0A4A5C;
+  --bar-searching:  #0891B2;
+}
+
+/* ─── Base ───────────────────────────────────────────────────── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ─── Typography ─────────────────────────────────────────────── */
+.font-mono   { font-family: 'Space Mono', monospace; }
+.font-code   { font-family: 'JetBrains Mono', monospace; }
+.font-body   { font-family: 'DM Sans', sans-serif; }
+
+h1, h2, h3 { font-family: 'Space Mono', monospace; font-weight: 700; }
+
+/* ─── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-surface); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ─── Utility Classes ────────────────────────────────────────── */
+.surface {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+
+.elevated {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+/* ─── Bar Glow Animation ─────────────────────────────────────── */
+@keyframes bar-pulse {
+  0%, 100% { box-shadow: 0 0 8px var(--accent-primary); }
+  50%       { box-shadow: 0 0 20px var(--accent-primary), 0 0 40px var(--accent-primary)40; }
+}
+
+.bar-glow { animation: bar-pulse 0.6s ease-in-out infinite; }
+
+/* ─── Page Transition ────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter { animation: fadeIn 0.3s ease forwards; }
+
+/* ─── Active line highlight in pseudocode ────────────────────── */
+.code-line { 
+  padding: 2px 8px; 
+  border-radius: 3px; 
+  transition: background 0.15s ease;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.code-line.active {
+  background: var(--accent-primary)22;
+  border-left: 2px solid var(--accent-primary);
+  color: var(--accent-primary);
+}

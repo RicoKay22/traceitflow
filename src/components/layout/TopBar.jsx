@@ -40,11 +40,11 @@ export default function TopBar() {
             fontFamily: 'Space Mono, monospace', fontWeight: 700, fontSize: '10px',
             clipPath: 'polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)',
             flexShrink: 0,
-          }}>AL</div>
+          }}>TIF</div>
           <span style={{
             fontFamily: 'Space Mono, monospace', fontWeight: 700,
             fontSize: '14px', letterSpacing: '0.18em', color: 'var(--text-primary)',
-          }}>ALGOLAB</span>
+          }}>TRACEITFLOW</span>
           <span style={{
             fontSize: '10px', color: 'var(--text-muted)',
             fontFamily: 'Space Mono, monospace', letterSpacing: '0.1em',

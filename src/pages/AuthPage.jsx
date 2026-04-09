@@ -62,20 +62,46 @@ function Typewriter({ texts }) {
 
 function InputField({ label, type, name, value, onChange, placeholder }) {
   const [focused, setFocused] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const isPassword = type === 'password'
+  const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
+
   return (
     <div style={{ marginBottom: '16px' }}>
       <label style={{ display:'block', marginBottom:'6px', fontSize:'10px', letterSpacing:'0.2em', color:'var(--text-muted)', fontFamily:'Space Mono,monospace' }}>{label}</label>
-      <input type={type} name={name} value={value} onChange={onChange} placeholder={placeholder}
-        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-        style={{
-          width:'100%', padding:'12px 16px', background:'var(--bg-elevated)',
-          border:`1px solid ${focused ? '#AAFF00' : 'var(--border)'}`,
-          borderRadius:'8px', color:'var(--text-primary)', fontSize:'14px',
-          fontFamily:'DM Sans,sans-serif', outline:'none', boxSizing:'border-box',
-          transition:'border-color 0.2s, box-shadow 0.2s',
-          boxShadow: focused ? '0 0 0 3px #AAFF0018' : 'none',
-        }}
-      />
+      <div style={{ position: 'relative' }}>
+        <input type={inputType} name={name} value={value} onChange={onChange} placeholder={placeholder}
+          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+          style={{
+            width:'100%', padding: isPassword ? '12px 44px 12px 16px' : '12px 16px',
+            background:'var(--bg-elevated)',
+            border:`1px solid ${focused ? '#AAFF00' : 'var(--border)'}`,
+            borderRadius:'8px', color:'var(--text-primary)', fontSize:'14px',
+            fontFamily:'DM Sans,sans-serif', outline:'none', boxSizing:'border-box',
+            transition:'border-color 0.2s, box-shadow 0.2s',
+            boxShadow: focused ? '0 0 0 3px #AAFF0018' : 'none',
+          }}
+        />
+        {isPassword && (
+          <button type="button" onClick={() => setShowPassword(s => !s)}
+            style={{ position:'absolute', right:'12px', top:'50%', transform:'translateY(-50%)',
+              background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)',
+              padding:'0', display:'flex', alignItems:'center' }}>
+            {showPassword ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            )}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -118,8 +144,8 @@ export default function AuthPage() {
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
         @keyframes glowPulse{0%,100%{box-shadow:0 0 16px #AAFF0033}50%{box-shadow:0 0 32px #AAFF0066}}
-        .algolab-left{display:none}
-        @media(min-width:900px){.algolab-left{display:flex}}
+        .traceitflow-left{display:none}
+        @media(min-width:900px){.traceitflow-left{display:flex}}
         .form-anim{animation:fadeUp 0.45s ease forwards}
         .goog-btn:hover{background:var(--bg-elevated) !important;border-color:#AAFF0055 !important}
         .sub-btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 0 28px #AAFF0066 !important}
@@ -130,7 +156,7 @@ export default function AuthPage() {
       <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-base)', fontFamily:'DM Sans,sans-serif' }}>
 
         {/* LEFT */}
-        <div className="algolab-left" style={{
+        <div className="traceitflow-left" style={{
           width:'50%', flexDirection:'column', justifyContent:'space-between',
           padding:'48px', background:'#080808', borderRight:'1px solid var(--border)',
           position:'relative', overflow:'hidden',
@@ -153,8 +179,8 @@ export default function AuthPage() {
                 fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:'11px',
                 clipPath:'polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)',
                 animation:'glowPulse 3s ease-in-out infinite',
-              }}>AL</div>
-              <span style={{ fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:'18px', letterSpacing:'0.2em', color:'var(--text-primary)' }}>ALGOLAB</span>
+              }}>TIF</div>
+              <span style={{ fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:'18px', letterSpacing:'0.2em', color:'var(--text-primary)' }}>TRACEITFLOW</span>
             </div>
             <p style={{ color:'var(--text-muted)', fontSize:'10px', letterSpacing:'0.35em', fontFamily:'Space Mono,monospace' }}>BY RICO KAY</p>
           </div>
@@ -173,8 +199,8 @@ export default function AuthPage() {
               ))}
             </div>
             <h1 style={{ fontFamily:'Space Mono,monospace', fontSize:'34px', fontWeight:700, lineHeight:1.3, marginBottom:'16px', color:'var(--text-primary)' }}>
-              See the logic.<br />
-              <Typewriter texts={['Feel the pattern.','Think clearly.','Build faster.','Understand deeply.']} />
+              Trace the logic.<br />
+              <Typewriter texts={['Step by step.','Think clearly.','Build faster.','Understand deeply.']} />
             </h1>
             <p style={{ fontSize:'14px', color:'var(--text-muted)', lineHeight:1.75, maxWidth:'340px' }}>
               Watch algorithms animate step by step. Pseudocode syncs in real time. Built for developers who learn by seeing.
@@ -203,8 +229,8 @@ export default function AuthPage() {
                 display:'flex', alignItems:'center', justifyContent:'center',
                 fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:'10px',
                 clipPath:'polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)',
-              }}>AL</div>
-              <span style={{ fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:'14px', letterSpacing:'0.2em' }}>ALGOLAB</span>
+              }}>TIF</div>
+              <span style={{ fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:'14px', letterSpacing:'0.2em' }}>TRACEITFLOW</span>
             </div>
 
             {/* Tabs */}
@@ -222,7 +248,7 @@ export default function AuthPage() {
             </div>
 
             <h2 style={{ fontFamily:'Space Mono,monospace', fontSize:'24px', fontWeight:700, marginBottom:'6px', color:'var(--text-primary)' }}>
-              {mode==='login' ? 'Welcome back.' : 'Join AlgoLab.'}
+              {mode==='login' ? 'Welcome back.' : 'Join TRACEITFLOW.'}
             </h2>
             <p style={{ fontSize:'14px', color:'var(--text-muted)', marginBottom:'28px' }}>
               {mode==='login' ? 'Sign in to continue your algorithm journey.' : 'Create an account to start visualizing.'}
@@ -265,6 +291,20 @@ export default function AuthPage() {
                 )}
                 <InputField label="EMAIL" type="email" name="email" value={form.email} onChange={handleChange} placeholder="you@example.com" />
                 <InputField label="PASSWORD" type="password" name="password" value={form.password} onChange={handleChange} placeholder="Min. 8 characters" />
+
+                {/* Forgot password — login mode only */}
+{mode === 'login' && (
+  <div style={{ textAlign:'right', marginTop:'-10px', marginBottom:'16px' }}>
+    <button type="button" onClick={() => alert('Reset flow coming soon')}
+      style={{ background:'none', border:'none', cursor:'pointer',
+        color:'var(--text-muted)', fontSize:'11px', fontFamily:'Space Mono,monospace' }}
+      onMouseEnter={e => e.target.style.color='#AAFF00'}
+      onMouseLeave={e => e.target.style.color='var(--text-muted)'}
+    >
+      Forgot password?
+    </button>
+  </div>
+)}
 
                 {error && (
                   <div style={{ padding:'12px 14px', borderRadius:'8px', marginBottom:'14px', background:'#FF444411', border:'1px solid #FF444433', color:'#FF4444', fontSize:'12px', fontFamily:'Space Mono,monospace' }}>

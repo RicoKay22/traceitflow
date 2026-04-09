@@ -191,7 +191,7 @@ export default function Sidebar({ collapsed, onToggleCollapse }) {
               fontSize: '9px', color: 'var(--text-muted)',
               fontFamily: 'Space Mono, monospace', letterSpacing: '0.15em',
             }}>
-              ALGOLAB v1.0 · RICO KAY
+              TRACEITFLOW v1.0 · RICO KAY
             </p>
           </div>
         )}

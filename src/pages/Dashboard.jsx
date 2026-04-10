@@ -242,8 +242,8 @@ export default function Dashboard() {
                 MORE COMING SOON
               </p>
               <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-  Graph traversal algorithms (BFS & DFS) coming in the next update.
-</p>
+              Graph traversal algorithms (BFS & DFS) coming in the next update.
+              </p>
             </div>
             <Trophy size={16} color="#FFB800" style={{ marginLeft: 'auto', flexShrink: 0 }} />
           </div>

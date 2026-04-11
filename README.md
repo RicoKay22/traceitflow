@@ -231,7 +231,7 @@ This project follows conventional commits with 15+ meaningful commits documentin
 **Rico Kay (Olumide Olayinka)**
 - GitHub: [@RicoKay22](https://github.com/RicoKay22)
 - Project: [KayAcademy](https://kayacademy.vercel.app) — E-learning platform for African professionals
-- Porfolio: [Digital-Business-Card] (https://digital-business-card-beta-opal.vercel.app/)
+- Porfolio: [Digital-Business-Card](https://digital-business-card-beta-opal.vercel.app/)
 
 ---
 

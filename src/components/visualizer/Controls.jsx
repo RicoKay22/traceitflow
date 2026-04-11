@@ -98,6 +98,7 @@ export default function Controls({
   onPlay, onPause, onReset,
   onStepForward, onStepBack,
   onRandomize,
+  isGraph = false,
 }) {
   const speedIndex = SPEED_VALUES.indexOf(speed)
   const progress = totalSteps > 1 ? Math.round((currentStep / (totalSteps - 1)) * 100) : 0
@@ -126,29 +127,31 @@ export default function Controls({
         <TipButton tip={isPlaying ? 'Pause' : isFinished ? 'Replay' : 'Play'} onClick={isPlaying ? onPause : onPlay} variant="play">
           {isPlaying ? <Pause size={20} strokeWidth={2} /> : <Play size={20} strokeWidth={2} style={{ marginLeft: '2px' }} />}
         </TipButton>
-        <TipButton tip="Randomize array" onClick={onRandomize}><Shuffle size={14} /></TipButton>
+        {!isGraph && <TipButton tip="Randomize array" onClick={onRandomize}><Shuffle size={14} /></TipButton>}
         <TipButton tip="Step forward" onClick={onStepForward} disabled={isFinished}><ChevronRight size={15} /></TipButton>
       </div>
 
       {/* Sliders with +/- buttons */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', paddingTop: '4px', borderTop: '1px solid var(--border)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isGraph ? '1fr' : '1fr 1fr', gap: '20px', paddingTop: '4px', borderTop: '1px solid var(--border)' }}>
         <SliderWithButtons
           label="SPEED" value={speedIndex}
           onValueChange={i => onSpeedChange(SPEED_VALUES[i])}
           min={0} max={4} step={1}
           displayValue={SPEED_LABELS[speed] || '1×'}
         />
-        <SliderWithButtons
-          label="ARRAY SIZE" value={arraySize}
-          onValueChange={onArraySizeChange}
-          min={10} max={80} step={5}
-          displayValue={`${arraySize}`}
-        />
+        {!isGraph && (
+          <SliderWithButtons
+            label="ARRAY SIZE" value={arraySize ?? 30}
+            onValueChange={onArraySizeChange}
+            min={10} max={80} step={5}
+            displayValue={`${arraySize ?? 30}`}
+          />
+        )}
       </div>
 
       {isFinished && (
         <div style={{ padding: '8px 12px', borderRadius: '8px', textAlign: 'center', background: '#FFB80011', border: '1px solid #FFB80033', color: '#FFB800', fontSize: '11px', fontFamily: 'Space Mono, monospace', letterSpacing: '0.1em' }}>
-          ✓ SORT COMPLETE — Reset to run again
+          {isGraph ? "✓ TRAVERSAL COMPLETE — Reset to run again" : "✓ SORT COMPLETE — Reset to run again"}
         </div>
       )}
     </div>

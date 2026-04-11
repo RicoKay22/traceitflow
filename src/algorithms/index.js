@@ -3,6 +3,8 @@ import { generateMergeSortSteps, mergeSortPseudocode, mergeSortComplexity } from
 import { generateQuickSortSteps, quickSortPseudocode, quickSortComplexity } from './sorting/quickSort'
 import { generateBinarySearchSteps, binarySearchPseudocode, binarySearchComplexity } from './searching/binarySearch'
 import { generateLinearSearchSteps, linearSearchPseudocode, linearSearchComplexity } from './searching/linearSearch'
+import { generateBFSSteps, bfsPseudocode, bfsComplexity } from './graph/bfs'
+import { generateDFSSteps, dfsPseudocode, dfsComplexity } from './graph/dfs'
 
 export const ALGORITHMS = [
   {
@@ -19,7 +21,7 @@ export const ALGORITHMS = [
     id: 'mergeSort',
     name: 'Merge Sort',
     category: 'sorting',
-    description: 'Divides the array in half, recursively sorts each half, then merges them back in order. Guaranteed O(n log n) performance — reliable and predictable.',
+    description: 'Divides the array in half, recursively sorts each half, then merges them back in order. Guaranteed O(n log n) — reliable and predictable.',
     generateSteps: generateMergeSortSteps,
     pseudocode: mergeSortPseudocode,
     complexity: mergeSortComplexity,
@@ -54,6 +56,28 @@ export const ALGORITHMS = [
     pseudocode: linearSearchPseudocode,
     complexity: linearSearchComplexity,
     accentColor: '#FB923C',
+  },
+  {
+    id: 'bfs',
+    name: 'BFS',
+    category: 'graph',
+    description: 'Breadth First Search explores a graph level by level using a queue. Visits all neighbors of a node before going deeper — guarantees shortest path in unweighted graphs.',
+    generateSteps: generateBFSSteps,
+    pseudocode: bfsPseudocode,
+    complexity: bfsComplexity,
+    accentColor: '#AAFF00',
+    isGraph: true,
+  },
+  {
+    id: 'dfs',
+    name: 'DFS',
+    category: 'graph',
+    description: 'Depth First Search dives as deep as possible down one path using a stack before backtracking. Used in maze solving, cycle detection, and topological sorting.',
+    generateSteps: generateDFSSteps,
+    pseudocode: dfsPseudocode,
+    complexity: dfsComplexity,
+    accentColor: '#F472B6',
+    isGraph: true,
   },
 ]
 

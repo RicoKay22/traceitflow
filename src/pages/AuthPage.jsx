@@ -113,6 +113,10 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
+  const [resetMode, setResetMode] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetSent, setResetSent] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false) 
   const { signIn, signUp } = useAuth()
   const navigate = useNavigate()
 
@@ -136,7 +140,32 @@ export default function AuthPage() {
     if (error) { setError(error.message); setOauthLoading(false) }
   }
 
-  const switchMode = m => { setMode(m); setError(''); setSuccess(false); setForm({ email:'', password:'', username:'' }) }
+  const handleForgotPassword = async () => {
+  if (!resetEmail.trim()) { setError('Please enter your email'); return }
+
+  setResetLoading(true)
+  setError('')
+
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/auth`,
+    })
+    if (error) throw error
+
+    setResetSent(true)
+  } catch (err) {
+    setError(err.message || 'Failed to send reset email')
+  } finally {
+    setResetLoading(false)
+  }
+}
+
+ const switchMode = m => {
+  setMode(m)
+  setError('')
+  setSuccess(false)
+  setForm({ email:'', password:'', username:'' })
+}
 
   return (
     <>
@@ -272,6 +301,7 @@ export default function AuthPage() {
             </button>
 
             {/* Divider */}
+
             <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'20px' }}>
               <div style={{ flex:1, height:'1px', background:'var(--border)' }} />
               <span style={{ fontSize:'10px', color:'var(--text-muted)', fontFamily:'Space Mono,monospace', letterSpacing:'0.1em' }}>OR</span>
@@ -293,16 +323,90 @@ export default function AuthPage() {
                 <InputField label="PASSWORD" type="password" name="password" value={form.password} onChange={handleChange} placeholder="Min. 8 characters" />
 
                 {/* Forgot password — login mode only */}
+
 {mode === 'login' && (
-  <div style={{ textAlign:'right', marginTop:'-10px', marginBottom:'16px' }}>
-    <button type="button" onClick={() => alert('Reset flow coming soon')}
-      style={{ background:'none', border:'none', cursor:'pointer',
-        color:'var(--text-muted)', fontSize:'11px', fontFamily:'Space Mono,monospace' }}
-      onMouseEnter={e => e.target.style.color='#AAFF00'}
-      onMouseLeave={e => e.target.style.color='var(--text-muted)'}
-    >
-      Forgot password?
-    </button>
+  <div style={{ marginBottom: '16px' }}>
+    {!resetMode ? (
+      <div style={{ textAlign:'right', marginTop:'-8px' }}>
+        <button type="button" onClick={() => { setResetMode(true); setError('') }}
+          style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', fontSize:'11px', fontFamily:'Space Mono,monospace', transition:'color 0.2s' }}
+          onMouseEnter={e => e.target.style.color='#AAFF00'}
+          onMouseLeave={e => e.target.style.color='var(--text-muted)'}
+        >
+          Forgot password?
+        </button>
+      </div>
+    ) : resetSent ? (
+      <div style={{ padding:'12px', borderRadius:'8px', background:'#AAFF0011', border:'1px solid #AAFF0033', color:'#AAFF00', fontSize:'12px', fontFamily:'Space Mono,monospace' }}>
+        ✓ Reset link sent! Check your email inbox.
+        <button type="button" onClick={() => { setResetMode(false); setResetSent(false); setResetEmail('') }}
+          style={{ display:'block', marginTop:'8px', background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', fontSize:'11px', fontFamily:'Space Mono,monospace' }}>
+          ← Back to login
+        </button>
+      </div>
+    ) : (
+      <div style={{ padding:'12px', borderRadius:'8px', background:'var(--bg-elevated)', border:'1px solid var(--border)' }}>
+        <p style={{ fontSize:'11px', color:'var(--text-muted)', fontFamily:'Space Mono,monospace', marginBottom:'8px' }}>
+          ENTER EMAIL TO RESET
+        </p>
+
+        <div style={{ display:'flex', gap:'8px' }}>
+          <input
+            type="email"
+            value={resetEmail}
+            onChange={e => setResetEmail(e.target.value)}
+            placeholder="you@example.com"
+            style={{
+              flex:1,
+              padding:'8px 12px',
+              background:'var(--bg-base)',
+              border:'1px solid var(--border)',
+              borderRadius:'6px',
+              color:'var(--text-primary)',
+              fontSize:'13px',
+              fontFamily:'DM Sans,sans-serif',
+              outline:'none'
+            }}
+          />
+
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={resetLoading}
+            style={{
+              padding:'8px 12px',
+              background:'#AAFF00',
+              color:'#0D0D0D',
+              border:'none',
+              borderRadius:'6px',
+              cursor:'pointer',
+              fontSize:'11px',
+              fontFamily:'Space Mono,monospace',
+              fontWeight:700,
+              whiteSpace:'nowrap'
+            }}
+          >
+            {resetLoading ? '...' : 'SEND →'}
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => { setResetMode(false); setError('') }}
+          style={{
+            marginTop:'8px',
+            background:'none',
+            border:'none',
+            cursor:'pointer',
+            color:'var(--text-muted)',
+            fontSize:'11px',
+            fontFamily:'Space Mono,monospace'
+          }}
+        >
+          ← Cancel
+        </button>
+      </div>
+    )}
   </div>
 )}
 

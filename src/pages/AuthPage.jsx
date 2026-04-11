@@ -142,16 +142,27 @@ export default function AuthPage() {
 
   const handleForgotPassword = async () => {
   if (!resetEmail.trim()) { setError('Please enter your email'); return }
-
-  setResetLoading(true)
-  setError('')
-
+  setResetLoading(true); setError('')
+  
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-      redirectTo: `${window.location.origin}/auth`,
-    })
-    if (error) throw error
+    // Check if email exists in our profiles table first
 
+    const { data, error: fetchError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', resetEmail.toLowerCase().trim())
+      .single()
+
+    if (fetchError || !data) {
+      throw new Error('No account found with this email. Please use the email you registered with.')
+    }
+
+    // Email exists — send the reset link
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/update-password`,
+    })
+
+    if (error) throw error  
     setResetSent(true)
   } catch (err) {
     setError(err.message || 'Failed to send reset email')
@@ -159,6 +170,7 @@ export default function AuthPage() {
     setResetLoading(false)
   }
 }
+
 
  const switchMode = m => {
   setMode(m)
@@ -324,83 +336,103 @@ export default function AuthPage() {
 
                 {/* Forgot password — login mode only */}
 
-{mode === 'login' && (
+                {mode === 'login' && (
   <div style={{ marginBottom: '16px' }}>
     {!resetMode ? (
-      <div style={{ textAlign:'right', marginTop:'-8px' }}>
-        <button type="button" onClick={() => { setResetMode(true); setError('') }}
-          style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', fontSize:'11px', fontFamily:'Space Mono,monospace', transition:'color 0.2s' }}
-          onMouseEnter={e => e.target.style.color='#AAFF00'}
-          onMouseLeave={e => e.target.style.color='var(--text-muted)'}
+
+      // Simple link
+      
+      <div style={{ textAlign: 'right', marginTop: '-8px' }}>
+        <button
+          type="button"
+          onClick={() => { setResetMode(true); setError('') }}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--text-muted)', fontSize: '11px',
+            fontFamily: 'Space Mono, monospace', transition: 'color 0.2s',
+          }}
+          onMouseEnter={e => e.target.style.color = '#AAFF00'}
+          onMouseLeave={e => e.target.style.color = 'var(--text-muted)'}
         >
           Forgot password?
         </button>
       </div>
     ) : resetSent ? (
-      <div style={{ padding:'12px', borderRadius:'8px', background:'#AAFF0011', border:'1px solid #AAFF0033', color:'#AAFF00', fontSize:'12px', fontFamily:'Space Mono,monospace' }}>
-        ✓ Reset link sent! Check your email inbox.
-        <button type="button" onClick={() => { setResetMode(false); setResetSent(false); setResetEmail('') }}
-          style={{ display:'block', marginTop:'8px', background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', fontSize:'11px', fontFamily:'Space Mono,monospace' }}>
+
+      // Success state
+
+      <div style={{
+        padding: '14px 16px', borderRadius: '8px',
+        background: '#AAFF0011', border: '1px solid #AAFF0033',
+        color: '#AAFF00', fontSize: '13px', fontFamily: 'Space Mono, monospace',
+      }}>
+        ✓ Reset link sent to {resetEmail}. Check your inbox.
+        <button
+          type="button"
+          onClick={() => { setResetMode(false); setResetSent(false); setResetEmail('') }}
+          style={{
+            display: 'block', marginTop: '8px', background: 'none', border: 'none',
+            cursor: 'pointer', color: 'var(--text-muted)', fontSize: '11px',
+            fontFamily: 'Space Mono, monospace',
+          }}
+        >
           ← Back to login
         </button>
       </div>
     ) : (
-      <div style={{ padding:'12px', borderRadius:'8px', background:'var(--bg-elevated)', border:'1px solid var(--border)' }}>
-        <p style={{ fontSize:'11px', color:'var(--text-muted)', fontFamily:'Space Mono,monospace', marginBottom:'8px' }}>
-          ENTER EMAIL TO RESET
+      // Email input for reset
+      <div style={{
+        padding: '14px 16px', borderRadius: '8px',
+        background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+        display: 'flex', flexDirection: 'column', gap: '10px',
+      }}>
+        <p style={{
+          fontSize: '10px', color: 'var(--text-muted)',
+          fontFamily: 'Space Mono, monospace', letterSpacing: '0.15em', margin: 0,
+        }}>
+          ENTER YOUR REGISTERED EMAIL
         </p>
-
-        <div style={{ display:'flex', gap:'8px' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
           <input
             type="email"
             value={resetEmail}
-            onChange={e => setResetEmail(e.target.value)}
+            onChange={e => { setResetEmail(e.target.value); setError('') }}
             placeholder="you@example.com"
+            onFocus={e => e.target.style.borderColor = '#AAFF00'}
+            onBlur={e => e.target.style.borderColor = 'var(--border)'}
             style={{
-              flex:1,
-              padding:'8px 12px',
-              background:'var(--bg-base)',
-              border:'1px solid var(--border)',
-              borderRadius:'6px',
-              color:'var(--text-primary)',
-              fontSize:'13px',
-              fontFamily:'DM Sans,sans-serif',
-              outline:'none'
+              flex: 1, padding: '10px 12px',
+              background: 'var(--bg-base)', border: '1px solid var(--border)',
+              borderRadius: '7px', color: 'var(--text-primary)', fontSize: '13px',
+              fontFamily: 'DM Sans, sans-serif', outline: 'none',
+              transition: 'border-color 0.2s',
             }}
           />
-
           <button
             type="button"
             onClick={handleForgotPassword}
             disabled={resetLoading}
             style={{
-              padding:'8px 12px',
-              background:'#AAFF00',
-              color:'#0D0D0D',
-              border:'none',
-              borderRadius:'6px',
-              cursor:'pointer',
-              fontSize:'11px',
-              fontFamily:'Space Mono,monospace',
-              fontWeight:700,
-              whiteSpace:'nowrap'
+              padding: '10px 14px', background: resetLoading ? '#AAFF0055' : '#AAFF00',
+              color: '#0D0D0D', border: 'none', borderRadius: '7px',
+              cursor: resetLoading ? 'not-allowed' : 'pointer',
+              fontSize: '11px', fontFamily: 'Space Mono, monospace',
+              fontWeight: 700, whiteSpace: 'nowrap',
             }}
           >
             {resetLoading ? '...' : 'SEND →'}
           </button>
         </div>
-
+        <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>
+          Only emails used during registration will receive a reset link.
+        </p>
         <button
           type="button"
           onClick={() => { setResetMode(false); setError('') }}
           style={{
-            marginTop:'8px',
-            background:'none',
-            border:'none',
-            cursor:'pointer',
-            color:'var(--text-muted)',
-            fontSize:'11px',
-            fontFamily:'Space Mono,monospace'
+            alignSelf: 'flex-start', background: 'none', border: 'none',
+            cursor: 'pointer', color: 'var(--text-muted)', fontSize: '11px',
+            fontFamily: 'Space Mono, monospace',
           }}
         >
           ← Cancel

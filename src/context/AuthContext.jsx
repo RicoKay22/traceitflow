@@ -36,23 +36,22 @@ export function AuthProvider({ children }) {
   }
 
   async function signUp(email, password, username) {
-  const { data, error } = await supabase.auth.signUp({ email, password })
-  if (error) throw error
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    if (error) throw error
 
-  if (data.user) {
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert({
+    // Create profile row
+    if (data.user) {
+      await supabase.from('profiles').upsert({
         id: data.user.id,
         username,
+        email: email.toLowerCase().trim(),
         preferred_speed: 1.0,
         last_algorithm: 'bubbleSort',
         theme: 'dark',
       })
-    if (profileError) throw profileError
+    }
+    return data
   }
-  return data
-}
 
   async function signIn(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })

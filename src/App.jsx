@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import VisualizerPage from './pages/VisualizerPage'
 import ComparisonPage from './pages/ComparisonPage'
 import NotFoundPage from './pages/NotFoundPage'
+import UpdatePasswordPage from './pages/UpdatePasswordPage'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -27,6 +28,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/" replace /> : <AuthPage />} />
+      <Route path="/update-password" element={<UpdatePasswordPage />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/visualizer/:algorithmId" element={<ProtectedRoute><VisualizerPage /></ProtectedRoute>} />
       <Route path="/compare" element={<ProtectedRoute><ComparisonPage /></ProtectedRoute>} />

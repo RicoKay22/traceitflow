@@ -230,23 +230,8 @@ export default function Dashboard() {
   <div style={{ color:'#AAFF00', fontFamily:'Space Mono, monospace', fontSize:'12px', fontWeight:700, flexShrink:0 }}>ENTER ↗</div>
 </div>
 
-          {/* Coming soon strip */}
-          <div style={{
-            padding: '20px 24px', borderRadius: '12px',
-            background: 'var(--bg-surface)', border: '1px dashed var(--border)',
-            display: 'flex', alignItems: 'center', gap: '12px',
-          }}>
-            <Clock size={16} color="var(--text-muted)" />
-            <div>
-              <p style={{ fontSize: '12px', color: 'var(--text-primary)', fontFamily: 'Space Mono, monospace', marginBottom: '2px' }}>
-                MORE COMING SOON
-              </p>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              Graph traversal algorithms (BFS & DFS) coming in the next update.
-              </p>
-            </div>
-            <Trophy size={16} color="#FFB800" style={{ marginLeft: 'auto', flexShrink: 0 }} />
-          </div>
+   
+          
         </main>
       </div>
     </div>

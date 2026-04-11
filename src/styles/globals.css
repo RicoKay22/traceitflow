@@ -1,8 +1,8 @@
-
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* ─── Design Tokens ─────────────────────────────────────────── */
 :root {
@@ -116,4 +116,79 @@ h1, h2, h3 { font-family: 'Space Mono', monospace; font-weight: 700; }
   background: var(--accent-primary)22;
   border-left: 2px solid var(--accent-primary);
   color: var(--accent-primary);
+}
+
+/* ─── Mobile Responsive ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Hide sidebar on mobile — controlled by JS */
+  .tif-sidebar-mobile-hidden {
+    display: none !important;
+  }
+
+  /* Full width main on mobile */
+  .tif-main-full {
+    width: 100% !important;
+  }
+
+  /* Stack comparison mode on mobile */
+  .tif-compare-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Smaller topbar text on mobile */
+  .tif-topbar-subtitle {
+    display: none !important;
+  }
+
+  /* Dashboard grid single column */
+  .tif-algo-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stat cards 2-col on mobile */
+  .tif-stat-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Controls full width */
+  .tif-controls-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Right drawer full width on mobile */
+  .tif-drawer {
+    width: 100% !important;
+    top: 0 !important;
+  }
+
+  /* Auth page — hide left panel on mobile (already handled with CSS class) */
+  .traceitflow-left {
+    display: none !important;
+  }
+
+  /* Visualizer page padding reduction */
+  .tif-viz-main {
+    padding: 12px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra small screens */
+  .tif-stat-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .tif-controls-buttons {
+    gap: 6px !important;
+  }
+}
+
+/* ─── Hamburger visible only on mobile ──────────────────────── */
+.tif-hamburger {
+  display: none;
+}
+@media (max-width: 768px) {
+  .tif-hamburger {
+    display: flex !important;
+  }
 }

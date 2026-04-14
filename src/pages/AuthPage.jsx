@@ -106,6 +106,50 @@ function InputField({ label, type, name, value, onChange, placeholder }) {
   )
 }
 
+function PasswordStrengthHint({ password }) {
+  if (!password) return null
+  
+  const checks = [
+    { label: '8+ characters', pass: password.length >= 8 },
+    { label: 'Uppercase (A-Z)', pass: /[A-Z]/.test(password) },
+    { label: 'Lowercase (a-z)', pass: /[a-z]/.test(password) },
+    { label: 'Number (0-9)', pass: /[0-9]/.test(password) },
+    { label: 'Special (!@#$...)', pass: /[^a-zA-Z0-9]/.test(password) },
+  ]
+  
+  const passed = checks.filter(c => c.pass).length
+  const strength = passed <= 2 ? 'Weak' : passed <= 3 ? 'Fair' : passed <= 4 ? 'Good' : 'Strong'
+  const barColor = passed <= 2 ? '#FF4444' : passed <= 3 ? '#FFB800' : passed <= 4 ? '#00FFD1' : '#AAFF00'
+
+  return (
+    <div style={{ marginTop: '-8px', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', gap: '3px', marginBottom: '6px' }}>
+        {[1,2,3,4,5].map(i => (
+          <div key={i} style={{
+            flex: 1, height: '3px', borderRadius: '2px',
+            background: i <= passed ? barColor : 'var(--border)',
+            transition: 'background 0.2s',
+          }} />
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+        {checks.map(c => (
+          <span key={c.label} style={{
+            fontSize: '10px', padding: '2px 7px', borderRadius: '4px',
+            background: c.pass ? '#AAFF0018' : 'var(--bg-elevated)',
+            color: c.pass ? '#AAFF00' : 'var(--text-muted)',
+            border: `1px solid ${c.pass ? '#AAFF0033' : 'var(--border)'}`,
+            fontFamily: 'Space Mono, monospace',
+          }}>
+            {c.pass ? '✓' : '·'} {c.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function AuthPage() {
   const [mode, setMode] = useState('login')
   const [form, setForm] = useState({ email:'', password:'', username:'' })
@@ -122,6 +166,21 @@ export default function AuthPage() {
 
   const handleChange = e => { setForm(p => ({ ...p, [e.target.name]: e.target.value })); setError('') }
 
+  const getFriendlyError = (errorMessage) => {
+  if (!errorMessage) return ''
+  
+  if (errorMessage.includes('Password should contain') || errorMessage.includes('password')) {
+    return 'Your password needs: at least 8 characters, one uppercase letter (A-Z), one lowercase letter (a-z), one number (0-9), and one special character (e.g. !@#$%)'
+  }
+  
+  if (errorMessage.includes('email')) return 'Please check your email address and try again.'
+  if (errorMessage.includes('already registered')) return 'This email is already registered. Try logging in instead.'
+  if (errorMessage.includes('Invalid login credentials')) return 'Incorrect email or password. Please try again.'
+  if (errorMessage.includes('Email not confirmed')) return 'Please check your email and click the confirmation link first.'
+  
+  return errorMessage
+}
+
   const handleSubmit = async e => {
     e.preventDefault(); setLoading(true); setError('')
     try {
@@ -130,7 +189,7 @@ export default function AuthPage() {
         if (!form.username.trim()) { setError('Username is required'); setLoading(false); return }
         await signUp(form.email, form.password, form.username); setSuccess(true)
       }
-    } catch (err) { setError(err.message || 'Something went wrong') }
+    } catch (err) { setError(getFriendlyError(err.message) || 'Something went wrong') }
     finally { setLoading(false) }
   }
 
@@ -333,7 +392,8 @@ export default function AuthPage() {
                 )}
                 <InputField label="EMAIL" type="email" name="email" value={form.email} onChange={handleChange} placeholder="you@example.com" />
                 <InputField label="PASSWORD" type="password" name="password" value={form.password} onChange={handleChange} placeholder="Min. 8 characters" />
-
+                {mode === 'register' && <PasswordStrengthHint password={form.password} />}
+                
                 {/* Forgot password — login mode only */}
 
                 {mode === 'login' && (

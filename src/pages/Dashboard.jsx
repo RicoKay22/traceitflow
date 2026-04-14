@@ -8,7 +8,6 @@ import {
   ArrowRight, Clock, Zap, Trophy,
 } from 'lucide-react'
 import { ALGORITHMS } from '../algorithms/index'
-import { Swords } from 'lucide-react'
 
 // ─── Stat Card ───────────────────────────────────────────────
 function StatCard({ label, value, sub, color }) {
@@ -115,7 +114,9 @@ function AlgoCard({ algo, onClick }) {
 
 // ─── Main Dashboard ──────────────────────────────────────────
 export default function Dashboard() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => window.innerWidth < 768
+  )
   const { profile } = useAuth()
   const navigate = useNavigate()
 
@@ -207,31 +208,24 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
-          
-          <div
-  onClick={() => navigate('/compare')}
-  style={{
-    padding: '20px 24px', borderRadius: '12px',
-    background: 'var(--bg-surface)', border: '1px solid #AAFF0033',
-    display: 'flex', alignItems: 'center', gap: '16px',
-    cursor: 'pointer', transition: 'all 0.2s ease',
-    boxShadow: '0 0 20px #AAFF0011',
-  }}
-  onMouseEnter={e => { e.currentTarget.style.borderColor='#AAFF0066'; e.currentTarget.style.boxShadow='0 0 30px #AAFF0022' }}
-  onMouseLeave={e => { e.currentTarget.style.borderColor='#AAFF0033'; e.currentTarget.style.boxShadow='0 0 20px #AAFF0011' }}
->
-  <div style={{ width:'44px', height:'44px', borderRadius:'12px', background:'#AAFF0018', border:'1px solid #AAFF0033', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-    <Swords size={20} color="#AAFF00" strokeWidth={1.8} />
-  </div>
-  <div style={{ flex: 1 }}>
-    <p style={{ fontSize:'13px', fontWeight:700, color:'var(--text-primary)', fontFamily:'Space Mono, monospace', marginBottom:'3px' }}>COMPARISON MODE</p>
-    <p style={{ fontSize:'12px', color:'var(--text-muted)' }}>Run two algorithms side by side on the same array. Watch them race in real time.</p>
-  </div>
-  <div style={{ color:'#AAFF00', fontFamily:'Space Mono, monospace', fontSize:'12px', fontWeight:700, flexShrink:0 }}>ENTER ↗</div>
-</div>
 
-   
-          
+          {/* Coming soon strip */}
+          <div style={{
+            padding: '20px 24px', borderRadius: '12px',
+            background: 'var(--bg-surface)', border: '1px dashed var(--border)',
+            display: 'flex', alignItems: 'center', gap: '12px',
+          }}>
+            <Clock size={16} color="var(--text-muted)" />
+            <div>
+              <p style={{ fontSize: '12px', color: 'var(--text-primary)', fontFamily: 'Space Mono, monospace', marginBottom: '2px' }}>
+                MORE COMING SOON
+              </p>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                Merge Sort, Quick Sort, Binary Search, Linear Search, BFS & DFS — unlocking as we build.
+              </p>
+            </div>
+            <Trophy size={16} color="#FFB800" style={{ marginLeft: 'auto', flexShrink: 0 }} />
+          </div>
         </main>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import TopBar from '../components/layout/TopBar'
 import Sidebar from '../components/layout/Sidebar'
 import BarCanvas from '../components/visualizer/BarCanvas'
+import GraphCanvas from '../components/visualizer/GraphCanvas'
 import { useAnimationPlayer } from '../hooks/useAnimationPlayer'
 import { ALGORITHMS, getAlgorithmById } from '../algorithms/index'
 import * as Switch from '@radix-ui/react-switch'
@@ -185,8 +186,15 @@ export default function ComparisonPage() {
   const algoLeftDef  = getAlgorithmById(algoLeft)
   const algoRightDef = getAlgorithmById(algoRight)
 
-  const stepsLeft  = useMemo(() => algoLeftDef  ? algoLeftDef.generateSteps(sharedArray)  : [], [algoLeftDef,  sharedArray])
-  const stepsRight = useMemo(() => algoRightDef ? algoRightDef.generateSteps(sharedArray) : [], [algoRightDef, sharedArray])
+  const stepsLeft  = useMemo(() => {
+    if (!algoLeftDef) return []
+    return algoLeftDef.isGraph ? algoLeftDef.generateSteps() : algoLeftDef.generateSteps(sharedArray)
+  }, [algoLeftDef, sharedArray])
+
+  const stepsRight = useMemo(() => {
+    if (!algoRightDef) return []
+    return algoRightDef.isGraph ? algoRightDef.generateSteps() : algoRightDef.generateSteps(sharedArray)
+  }, [algoRightDef, sharedArray])
 
   const playerLeft  = useAnimationPlayer(stepsLeft)
   const playerRight = useAnimationPlayer(stepsRight)
@@ -368,11 +376,17 @@ export default function ComparisonPage() {
           {/* Dual canvas */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
-              <BarCanvas snapshot={playerLeft.currentSnapshot} totalElements={arraySize} accentColor={accentLeft} />
+              {algoLeftDef?.isGraph
+                ? <GraphCanvas snapshot={playerLeft.currentSnapshot} algorithmName={algoLeftDef.name} />
+                : <BarCanvas snapshot={playerLeft.currentSnapshot} totalElements={arraySize} accentColor={accentLeft} />
+              }
               <SideControls player={playerLeft} accentColor={accentLeft} finishTime={leftFinishTime} />
             </div>
             <div>
-              <BarCanvas snapshot={playerRight.currentSnapshot} totalElements={arraySize} accentColor={accentRight} />
+              {algoRightDef?.isGraph
+                ? <GraphCanvas snapshot={playerRight.currentSnapshot} algorithmName={algoRightDef.name} />
+                : <BarCanvas snapshot={playerRight.currentSnapshot} totalElements={arraySize} accentColor={accentRight} />
+              }
               <SideControls player={playerRight} accentColor={accentRight} finishTime={rightFinishTime} />
             </div>
           </div>
@@ -428,6 +442,7 @@ export default function ComparisonPage() {
                 }
               </button>
 
+              {!algoLeftDef?.isGraph && !algoRightDef?.isGraph && (
               <Tooltip.Provider delayDuration={400}>
                 <Tooltip.Root>
                   <Tooltip.Trigger asChild>
@@ -447,6 +462,7 @@ export default function ComparisonPage() {
                   </Tooltip.Portal>
                 </Tooltip.Root>
               </Tooltip.Provider>
+              )}
             </div>
 
             {/* Sliders */}
@@ -468,7 +484,8 @@ export default function ComparisonPage() {
                 </Slider.Root>
               </div>
 
-              {/* Array size */}
+              {/* Array size — hidden when either side is a graph algorithm */}
+              {!algoLeftDef?.isGraph && !algoRightDef?.isGraph && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: '9px', letterSpacing: '0.15em', color: 'var(--text-muted)', fontFamily: 'Space Mono, monospace' }}>ARRAY SIZE</span>
@@ -482,6 +499,7 @@ export default function ComparisonPage() {
                   <Slider.Thumb style={{ display: 'block', width: '16px', height: '16px', background: '#AAFF00', borderRadius: '9999px', boxShadow: '0 0 8px #AAFF0077', cursor: 'pointer', outline: 'none' }} />
                 </Slider.Root>
               </div>
+              )}
             </div>
           </div>
         </main>

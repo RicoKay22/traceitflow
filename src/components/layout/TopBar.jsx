@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
 import BB8Toggle from '../ui/BB8Toggle'
@@ -8,6 +8,26 @@ export default function TopBar() {
   const { theme, toggleTheme } = useTheme()
   const { profile, signOut } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef(null)
+
+  // Close menu on outside click using ref — avoids overlay z-index bug
+  useEffect(() => {
+    function handleClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false)
+      }
+    }
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClick)
+    }
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [menuOpen])
+
+  const handleSignOut = async (e) => {
+    e.stopPropagation()
+    setMenuOpen(false)
+    await signOut()
+  }
 
   return (
     <>
@@ -36,7 +56,6 @@ export default function TopBar() {
         flexShrink: 0,
         minWidth: 0,
       }}>
-
         {/* Left — Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
           <div style={{
@@ -60,14 +79,12 @@ export default function TopBar() {
 
         {/* Right — controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-
-          {/* BB8 Theme Toggle */}
           <div className="topbar-bb8">
             <BB8Toggle checked={theme === 'dark'} onChange={toggleTheme} />
           </div>
 
-          {/* User chip */}
-          <div style={{ position: 'relative' }}>
+          {/* User chip — ref-based, no overlay div needed */}
+          <div ref={menuRef} style={{ position: 'relative' }}>
             <button
               className="user-chip"
               onClick={() => setMenuOpen(o => !o)}
@@ -116,7 +133,7 @@ export default function TopBar() {
                 </div>
                 <button
                   className="dropdown-item"
-                  onClick={() => { signOut(); setMenuOpen(false) }}
+                  onMouseDown={handleSignOut}
                   style={{
                     width: '100%', padding: '8px 10px', borderRadius: '6px',
                     background: 'transparent', border: 'none',
@@ -133,10 +150,6 @@ export default function TopBar() {
           </div>
         </div>
       </header>
-
-      {menuOpen && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setMenuOpen(false)} />
-      )}
     </>
   )
 }

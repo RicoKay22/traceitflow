@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Background -->
+  <rect width="1200" height="630" fill="#0D0D0D"/>
+  
+  <!-- Grid pattern -->
+  <defs>
+    <pattern id="grid" width="44" height="44" patternUnits="userSpaceOnUse">
+      <path d="M 44 0 L 0 0 0 44" fill="none" stroke="#AAFF00" stroke-width="0.5" opacity="0.08"/>
+    </pattern>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#AAFF00" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#AAFF00" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+  
+  <!-- Glow circle -->
+  <ellipse cx="600" cy="315" rx="400" ry="300" fill="url(#glow)"/>
+  
+  <!-- TIF Hexagon logo -->
+  <polygon points="120,50 168,25 216,50 216,100 168,125 120,100" fill="#AAFF00"/>
+  <text x="168" y="84" text-anchor="middle" font-family="monospace" font-weight="900" font-size="28" fill="#0D0D0D">TIF</text>
+  
+  <!-- App name -->
+  <text x="240" y="90" font-family="monospace" font-weight="700" font-size="42" fill="#F2F2F2" letter-spacing="8">TRACEITFLOW</text>
+  
+  <!-- Tagline -->
+  <text x="120" y="160" font-family="monospace" font-size="22" fill="#666666" letter-spacing="4">Trace the logic. Step by step.</text>
+  
+  <!-- Divider line -->
+  <line x1="120" y1="195" x2="1080" y2="195" stroke="#2A2A2A" stroke-width="1"/>
+  
+  <!-- Animated bars visualization (static representation) -->
+  <!-- Bar heights representing a mid-sort state -->
+  <g transform="translate(120, 420)">
+    <!-- Bars with different states -->
+    <rect x="0"   y="-180" width="28" height="180" fill="#2A2A2A" rx="3"/>
+    <rect x="38"  y="-100" width="28" height="100" fill="#2A2A2A" rx="3"/>
+    <rect x="76"  y="-220" width="28" height="220" fill="#AAFF00" rx="3"/>
+    <rect x="114" y="-240" width="28" height="240" fill="#AAFF00" rx="3"/>
+    <rect x="152" y="-160" width="28" height="160" fill="#2A2A2A" rx="3"/>
+    <rect x="190" y="-120" width="28" height="120" fill="#2A2A2A" rx="3"/>
+    <rect x="228" y="-200" width="28" height="200" fill="#FFB800" rx="3"/>
+    <rect x="266" y="-260" width="28" height="260" fill="#FFB800" rx="3"/>
+    <rect x="304" y="-140" width="28" height="140" fill="#FF4444" rx="3"/>
+    <rect x="342" y="-180" width="28" height="180" fill="#FF4444" rx="3"/>
+    <rect x="380" y="-220" width="28" height="220" fill="#2A2A2A" rx="3"/>
+    <rect x="418" y="-100" width="28" height="100" fill="#2A2A2A" rx="3"/>
+    <rect x="456" y="-160" width="28" height="160" fill="#FFB800" rx="3"/>
+    <rect x="494" y="-200" width="28" height="200" fill="#FFB800" rx="3"/>
+    <rect x="532" y="-240" width="28" height="240" fill="#FFB800" rx="3"/>
+    <rect x="570" y="-260" width="28" height="260" fill="#FFB800" rx="3"/>
+  </g>
+  
+  <!-- Algorithm list -->
+  <g transform="translate(760, 240)">
+    <!-- Sorting -->
+    <circle cx="12" cy="12" r="6" fill="#AAFF00"/>
+    <text x="28" y="17" font-family="monospace" font-size="18" fill="#F2F2F2">Bubble · Merge · Quick Sort</text>
+    
+    <!-- Searching -->
+    <circle cx="12" cy="52" r="6" fill="#00FFD1"/>
+    <text x="28" y="57" font-family="monospace" font-size="18" fill="#F2F2F2">Binary · Linear Search</text>
+    
+    <!-- Graph -->
+    <circle cx="12" cy="92" r="6" fill="#A78BFA"/>
+    <text x="28" y="97" font-family="monospace" font-size="18" fill="#F2F2F2">BFS · DFS Graph Traversal</text>
+    
+    <!-- Pseudocode -->
+    <circle cx="12" cy="132" r="6" fill="#FB923C"/>
+    <text x="28" y="137" font-family="monospace" font-size="18" fill="#F2F2F2">Live Pseudocode Sync</text>
+    
+    <!-- Compare -->
+    <circle cx="12" cy="172" r="6" fill="#FF6B6B"/>
+    <text x="28" y="177" font-family="monospace" font-size="18" fill="#F2F2F2">Comparison Race Mode</text>
+  </g>
+  
+  <!-- Bottom bar -->
+  <rect x="0" y="570" width="1200" height="60" fill="#141414"/>
+  <text x="120" y="605" font-family="monospace" font-size="16" fill="#666666" letter-spacing="3">BUILT BY RICO KAY</text>
+  <text x="680" y="605" font-family="monospace" font-size="16" fill="#666666" letter-spacing="3">WHERE DESIGN MEETS LOGIC</text>
+  <text x="1080" y="605" text-anchor="end" font-family="monospace" font-size="16" fill="#AAFF00" letter-spacing="2">traceitflow.vercel.app</text>
+</svg>

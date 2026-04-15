@@ -9,18 +9,20 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       if (session?.user) fetchProfile(session.user.id)
       setLoading(false)
     })
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
-      else setProfile(null)
+      if (session?.user) {
+        await ensureProfile(session.user)
+        fetchProfile(session.user.id)
+      } else {
+        setProfile(null)
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -32,18 +34,53 @@ export function AuthProvider({ children }) {
       .select('*')
       .eq('id', userId)
       .single()
-    setProfile(data)
+    if (data) setProfile(data)
+  }
+
+  // Ensures a profile row exists — called on every auth state change
+  async function ensureProfile(user) {
+    if (!user) return
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    if (!existing) {
+      // Profile doesn't exist — create it
+      // Username: use Google name, or extract from email, or fallback
+      const username =
+        user.user_metadata?.full_name?.split(' ')[0] ||
+        user.user_metadata?.name?.split(' ')[0] ||
+        user.email?.split('@')[0] ||
+        'User'
+
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        username,
+        email: user.email?.toLowerCase(),
+        preferred_speed: 1.0,
+        last_algorithm: 'bubbleSort',
+        theme: 'dark',
+      })
+    } else {
+      // Profile exists — make sure email is filled in (for older accounts)
+      await supabase
+        .from('profiles')
+        .update({ email: user.email?.toLowerCase() })
+        .eq('id', user.id)
+        .is('email', null)
+    }
   }
 
   async function signUp(email, password, username) {
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
 
-    // Create profile row
     if (data.user) {
       await supabase.from('profiles').upsert({
         id: data.user.id,
-        username,
+        username: username.trim(),
         email: email.toLowerCase().trim(),
         preferred_speed: 1.0,
         last_algorithm: 'bubbleSort',

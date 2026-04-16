@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
+  const [user, setUser]       = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -30,55 +30,53 @@ export function AuthProvider({ children }) {
 
   async function fetchProfile(userId) {
     const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
+      .from('profiles').select('*').eq('id', userId).single()
     if (data) setProfile(data)
   }
 
-  // Ensures a profile row exists — called on every auth state change
+  // SAFE: never overwrites existing username
   async function ensureProfile(user) {
     if (!user) return
+
+    // Check if profile exists — select username too so we can preserve it
     const { data: existing } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', user.id)
-      .single()
+      .from('profiles').select('id, username, email').eq('id', user.id).single()
 
     if (!existing) {
-      // Profile doesn't exist — create it
-      // Username: use Google name, or extract from email, or fallback
+      // No profile row at all — create one
+      // For Google OAuth users, use their display name; for email users, use email prefix
       const username =
         user.user_metadata?.full_name?.split(' ')[0] ||
         user.user_metadata?.name?.split(' ')[0] ||
         user.email?.split('@')[0] ||
         'User'
 
-      await supabase.from('profiles').upsert({
+      // INSERT not upsert — if profile already exists, do nothing
+      await supabase.from('profiles').insert({
         id: user.id,
         username,
         email: user.email?.toLowerCase(),
         preferred_speed: 1.0,
         last_algorithm: 'bubbleSort',
         theme: 'dark',
-      })
+      }).select()
     } else {
-      // Profile exists — make sure email is filled in (for older accounts)
-      await supabase
-        .from('profiles')
-        .update({ email: user.email?.toLowerCase() })
-        .eq('id', user.id)
-        .is('email', null)
+      // Profile exists — ONLY fill in missing email, NEVER touch username
+      if (!existing.email && user.email) {
+        await supabase
+          .from('profiles')
+          .update({ email: user.email.toLowerCase() })
+          .eq('id', user.id)
+      }
     }
   }
 
   async function signUp(email, password, username) {
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
-
     if (data.user) {
-      await supabase.from('profiles').upsert({
+      // INSERT not upsert — preserve username always
+      await supabase.from('profiles').insert({
         id: data.user.id,
         username: username.trim(),
         email: email.toLowerCase().trim(),

@@ -2,9 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 
-// Flag key — tells App.jsx not to redirect to dashboard while we're on this page
-export const RESET_FLAG = 'tif_password_reset_active'
-
 function PasswordStrengthHint({ password }) {
   if (!password) return null
   const checks = [
@@ -45,61 +42,60 @@ function passwordIsStrong(pwd) {
 }
 
 export default function UpdatePasswordPage() {
-  const [password, setPassword]           = useState('')
-  const [confirm, setConfirm]             = useState('')
-  const [showPass, setShowPass]           = useState(false)
-  const [loading, setLoading]             = useState(false)
-  const [message, setMessage]             = useState('')
-  const [isSuccess, setIsSuccess]         = useState(false)
-  const [sessionReady, setSessionReady]   = useState(false)
-  const [sessionError, setSessionError]   = useState('')
+  const [password, setPassword]         = useState('')
+  const [confirm, setConfirm]           = useState('')
+  const [showPass, setShowPass]         = useState(false)
+  const [loading, setLoading]           = useState(false)
+  const [message, setMessage]           = useState('')
+  const [isSuccess, setIsSuccess]       = useState(false)
+  const [sessionReady, setSessionReady] = useState(false)
+  const [sessionError, setSessionError] = useState('')
   const navigate = useNavigate()
+
+  // Track whether we successfully updated the password
   const passwordUpdatedRef = useRef(false)
+  // Store the recovery session so we can use it for updateUser
+  const recoverySessionRef = useRef(null)
 
   useEffect(() => {
-    // Set flag so /auth route won't auto-redirect to dashboard
-    sessionStorage.setItem(RESET_FLAG, 'true')
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+    // ONLY approach: listen for PASSWORD_RECOVERY from Supabase's own client
+    // Do NOT manually parse the hash — Supabase handles it automatically
+    // When the user lands on this page with the recovery link in the URL,
+    // Supabase detects the hash and fires PASSWORD_RECOVERY within ~1 second
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth event:', event, !!session)
+      if (event === 'PASSWORD_RECOVERY') {
+        recoverySessionRef.current = session
         setSessionReady(true)
         setSessionError('')
       }
     })
 
-    const checkHash = async () => {
-      const hash = window.location.hash
-      if (hash && (hash.includes('access_token') || hash.includes('type=recovery'))) {
-        const params = new URLSearchParams(hash.substring(1))
-        const accessToken = params.get('access_token')
-        const refreshToken = params.get('refresh_token')
-        if (accessToken) {
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken || '',
-          })
-          if (error) setSessionError('Reset link is invalid or has expired. Please request a new one.')
-          else setSessionReady(true)
-          return
+    // Fallback: if already has a valid session (e.g. page refresh after recovery)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && !sessionReady) {
+        recoverySessionRef.current = session
+        setSessionReady(true)
+      }
+    })
+
+    // Timeout: if no PASSWORD_RECOVERY event within 12 seconds, show error
+    const timeoutId = setTimeout(async () => {
+      if (!sessionReady) {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          recoverySessionRef.current = session
+          setSessionReady(true)
+        } else {
+          setSessionError('Reset link expired or already used. Please request a new password reset link.')
         }
       }
-      const { data } = await supabase.auth.getSession()
-      if (data.session) {
-        setSessionReady(true)
-      } else {
-        setTimeout(async () => {
-          const { data: later } = await supabase.auth.getSession()
-          if (later.session) setSessionReady(true)
-          else setSessionError('Reset link expired or already used. Please request a new password reset.')
-        }, 8000)
-      }
-    }
-    checkHash()
+    }, 12000)
 
     return () => {
       subscription.unsubscribe()
-      sessionStorage.removeItem(RESET_FLAG)
-      // Sign out if user navigated away without updating password
+      clearTimeout(timeoutId)
+      // If user navigated away without updating password, sign them out
       if (!passwordUpdatedRef.current) {
         supabase.auth.signOut()
       }
@@ -115,36 +111,58 @@ export default function UpdatePasswordPage() {
     setMessage('')
 
     try {
-      // 10 second timeout so it never hangs forever
-      const { error } = await Promise.race([
-        supabase.auth.updateUser({ password }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Update timed out — please try again.')), 10000)
-        ),
-      ])
+      const { error } = await supabase.auth.updateUser({ password })
 
-      if (error) throw error
+      if (error) {
+        // If session expired mid-flow, give clear message
+        if (error.message?.includes('session') || error.message?.includes('expired') || error.message?.includes('Auth')) {
+          throw new Error('Your reset session expired. Please go back and request a new password reset link.')
+        }
+        throw error
+      }
 
-      // Mark done so cleanup won't sign out again
+      // SUCCESS
       passwordUpdatedRef.current = true
-      sessionStorage.removeItem(RESET_FLAG)
-
       setIsSuccess(true)
-      setMessage('Password updated successfully!')
 
-      // Sign out, then redirect to login
-      await supabase.auth.signOut()
-      setTimeout(() => navigate('/auth'), 2500)
+      // Sign out in background — don't await, don't block the UI
+      supabase.auth.signOut().catch(() => {})
 
     } catch (err) {
       setMessage(err.message || 'Failed to update password. Please try again.')
     } finally {
-      // Always reset loading — this was the hang bug
       setLoading(false)
     }
   }
 
   const isDisabled = !passwordIsStrong(password) || !confirm || password !== confirm
+
+  // Success screen
+  if (isSuccess) {
+    return (
+      <div style={{ minHeight:'100vh', background:'var(--bg-base)', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px', fontFamily:'DM Sans,sans-serif' }}>
+        <div style={{ width:'100%', maxWidth:'420px', textAlign:'center' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'40px', justifyContent:'center' }}>
+            <div style={{ width:'32px', height:'32px', background:'#AAFF00', color:'#0D0D0D', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:'11px', clipPath:'polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)' }}>TIF</div>
+            <span style={{ fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:'15px', letterSpacing:'0.18em', color:'var(--text-primary)' }}>TRACEITFLOW</span>
+          </div>
+          <div style={{ background:'var(--bg-surface)', border:'1px solid #AAFF0033', borderRadius:'14px', padding:'40px 32px' }}>
+            <div style={{ fontSize:'48px', marginBottom:'16px' }}>✓</div>
+            <h2 style={{ fontFamily:'Space Mono,monospace', fontSize:'20px', fontWeight:700, color:'#AAFF00', marginBottom:'12px' }}>Password Updated!</h2>
+            <p style={{ fontSize:'14px', color:'var(--text-muted)', marginBottom:'24px', lineHeight:1.6 }}>
+              Your TraceItFlow password has been changed successfully. Sign in with your new password to continue.
+            </p>
+            <button
+              onClick={() => navigate('/auth')}
+              style={{ width:'100%', padding:'14px', background:'#AAFF00', color:'#0D0D0D', border:'none', borderRadius:'8px', cursor:'pointer', fontFamily:'Space Mono,monospace', fontSize:'13px', fontWeight:700, letterSpacing:'0.12em', boxShadow:'0 0 20px #AAFF0033' }}
+            >
+              ← GO TO LOGIN
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg-base)', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px', fontFamily:'DM Sans,sans-serif' }}>
@@ -166,18 +184,7 @@ export default function UpdatePasswordPage() {
             </div>
           )}
 
-          {isSuccess && (
-            <div style={{ padding:'20px 16px', borderRadius:'10px', background:'#AAFF0011', border:'1px solid #AAFF0033', color:'#AAFF00', fontFamily:'Space Mono,monospace', fontSize:'13px', textAlign:'center' }}>
-              <div style={{ fontSize:'28px', marginBottom:'8px' }}>✓</div>
-              <div style={{ marginBottom:'4px', fontWeight:700 }}>Password updated successfully!</div>
-              <div style={{ fontSize:'11px', color:'var(--text-muted)', marginTop:'8px' }}>Redirecting to login in a moment...</div>
-              <button onClick={() => navigate('/auth')} style={{ marginTop:'14px', padding:'8px 16px', background:'#AAFF00', color:'#0D0D0D', border:'none', borderRadius:'6px', cursor:'pointer', fontFamily:'Space Mono,monospace', fontSize:'11px', fontWeight:700 }}>
-                ← Go to Login Now
-              </button>
-            </div>
-          )}
-
-          {!isSuccess && !sessionError && sessionReady && (
+          {!sessionError && sessionReady && (
             <form onSubmit={handleUpdate} style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
               <div>
                 <label style={{ display:'block', fontSize:'10px', letterSpacing:'0.2em', color:'var(--text-muted)', fontFamily:'Space Mono,monospace', marginBottom:'6px' }}>NEW PASSWORD</label>
@@ -211,8 +218,15 @@ export default function UpdatePasswordPage() {
                 {confirm && confirm === password && passwordIsStrong(password) && <p style={{ fontSize:'11px', color:'#AAFF00', marginTop:'4px' }}>✓ Passwords match</p>}
               </div>
 
-              {message && !isSuccess && (
-                <div style={{ padding:'12px 14px', borderRadius:'8px', background:'#FF444411', border:'1px solid #FF444433', color:'#FF4444', fontSize:'13px', fontFamily:'DM Sans,sans-serif', lineHeight:1.5 }}>✕ {message}</div>
+              {message && (
+                <div style={{ padding:'12px 14px', borderRadius:'8px', background:'#FF444411', border:'1px solid #FF444433', color:'#FF4444', fontSize:'13px', fontFamily:'DM Sans,sans-serif', lineHeight:1.5 }}>
+                  ✕ {message}
+                  {message.includes('session expired') || message.includes('reset session') ? (
+                    <button onClick={() => navigate('/auth')} style={{ display:'block', marginTop:'8px', padding:'7px 14px', background:'#AAFF00', color:'#0D0D0D', border:'none', borderRadius:'6px', cursor:'pointer', fontFamily:'Space Mono,monospace', fontSize:'11px', fontWeight:700 }}>
+                      ← Request New Reset Link
+                    </button>
+                  ) : null}
+                </div>
               )}
 
               <button type="submit" disabled={loading || isDisabled} style={{
@@ -231,7 +245,7 @@ export default function UpdatePasswordPage() {
             </form>
           )}
 
-          {!sessionReady && !sessionError && !isSuccess && (
+          {!sessionReady && !sessionError && (
             <div style={{ textAlign:'center', padding:'32px 20px' }}>
               <div style={{ fontFamily:'Space Mono,monospace', fontSize:'12px', color:'var(--text-muted)', marginBottom:'12px' }}>Verifying reset link...</div>
               <div style={{ display:'flex', gap:'4px', justifyContent:'center' }}>

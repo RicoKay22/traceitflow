@@ -1,18 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTheme } from '../../context/ThemeContext'
 import { useAuth } from '../../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 import BB8Toggle from '../ui/BB8Toggle'
 import { LogOut, User, ChevronDown } from 'lucide-react'
 
 export default function TopBar() {
-  const { theme, toggleTheme } = useTheme()
-  const { profile, signOut }   = useAuth()
-  const [menuOpen, setMenuOpen]         = useState(false)
+  const { theme, toggleTheme }   = useTheme()
+  const { profile, signOut }     = useAuth()
+  const navigate                 = useNavigate()
+  const [menuOpen, setMenuOpen]           = useState(false)
   const [confirmSignOut, setConfirmSignOut] = useState(false)
-  const [signingOut, setSigningOut]     = useState(false)
   const menuRef = useRef(null)
 
-  // Close on outside click — useRef approach avoids overlay z-index race
   useEffect(() => {
     if (!menuOpen) return
     const handler = (e) => {
@@ -21,7 +21,6 @@ export default function TopBar() {
         setConfirmSignOut(false)
       }
     }
-    // Small delay so the click that opened the menu doesn't immediately close it
     const timer = setTimeout(() => document.addEventListener('mousedown', handler), 10)
     return () => {
       clearTimeout(timer)
@@ -29,15 +28,16 @@ export default function TopBar() {
     }
   }, [menuOpen])
 
-  const handleSignOutConfirm = async () => {
-    setSigningOut(true)
-    try {
-      await signOut()
-      // onAuthStateChange will set user to null → ProtectedRoute redirects to /auth
-    } catch {
-      setSigningOut(false)
-      setConfirmSignOut(false)
-    }
+  const handleSignOutConfirm = () => {
+    // Close UI immediately — don't wait for server
+    setMenuOpen(false)
+    setConfirmSignOut(false)
+
+    // Navigate to /auth immediately — this clears the protected route
+    navigate('/auth', { replace: true })
+
+    // Fire signOut in background — don't await, don't block
+    signOut().catch(() => {})
   }
 
   return (
@@ -73,7 +73,6 @@ export default function TopBar() {
             <BB8Toggle checked={theme === 'dark'} onChange={toggleTheme} />
           </div>
 
-          {/* User chip with ref-based outside-click detection */}
           <div ref={menuRef} style={{ position:'relative' }}>
             <button
               className="tif-user-chip"
@@ -90,15 +89,13 @@ export default function TopBar() {
             </button>
 
             {menuOpen && (
-              <div style={{ position:'absolute', top:'44px', right:0, background:'var(--bg-surface)', border:'1px solid var(--border)', borderRadius:'10px', padding:'6px', minWidth:'180px', zIndex:100, boxShadow:'0 8px 32px rgba(0,0,0,0.4)' }}>
-                {/* User info */}
+              <div style={{ position:'absolute', top:'44px', right:0, background:'var(--bg-surface)', border:'1px solid var(--border)', borderRadius:'10px', padding:'6px', minWidth:'190px', zIndex:100, boxShadow:'0 8px 32px rgba(0,0,0,0.4)' }}>
                 <div style={{ padding:'8px 10px 10px', borderBottom:'1px solid var(--border)', marginBottom:'4px' }}>
                   <div style={{ fontSize:'11px', color:'var(--text-muted)', fontFamily:'Space Mono,monospace' }}>Signed in as</div>
                   <div style={{ fontSize:'12px', color:'var(--text-primary)', fontFamily:'Space Mono,monospace', marginTop:'2px', fontWeight:700 }}>{profile?.username || 'User'}</div>
                 </div>
 
                 {!confirmSignOut ? (
-                  /* Normal sign out button */
                   <button
                     className="tif-dropdown-item"
                     onClick={() => setConfirmSignOut(true)}
@@ -108,7 +105,6 @@ export default function TopBar() {
                     Sign out
                   </button>
                 ) : (
-                  /* Confirmation state */
                   <div style={{ padding:'10px' }}>
                     <p style={{ fontSize:'12px', color:'var(--text-primary)', fontFamily:'Space Mono,monospace', marginBottom:'10px', lineHeight:1.4 }}>
                       Sign out of TraceItFlow?
@@ -122,10 +118,9 @@ export default function TopBar() {
                       </button>
                       <button
                         onClick={handleSignOutConfirm}
-                        disabled={signingOut}
-                        style={{ flex:1, padding:'7px', borderRadius:'6px', background:'#FF4444', border:'none', cursor: signingOut ? 'not-allowed' : 'pointer', color:'#fff', fontSize:'11px', fontFamily:'Space Mono,monospace', fontWeight:700, opacity: signingOut ? 0.7 : 1 }}
+                        style={{ flex:1, padding:'7px', borderRadius:'6px', background:'#FF4444', border:'none', cursor:'pointer', color:'#fff', fontSize:'11px', fontFamily:'Space Mono,monospace', fontWeight:700 }}
                       >
-                        {signingOut ? '...' : 'SIGN OUT'}
+                        SIGN OUT
                       </button>
                     </div>
                   </div>

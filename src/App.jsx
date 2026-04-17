@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import AuthPage from './pages/AuthPage'
@@ -6,7 +6,7 @@ import Dashboard from './pages/Dashboard'
 import VisualizerPage from './pages/VisualizerPage'
 import ComparisonPage from './pages/ComparisonPage'
 import NotFoundPage from './pages/NotFoundPage'
-import UpdatePasswordPage, { RESET_FLAG } from './pages/UpdatePasswordPage'
+import UpdatePasswordPage from './pages/UpdatePasswordPage'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -23,23 +23,32 @@ function ProtectedRoute({ children }) {
   return user ? children : <Navigate to="/auth" replace />
 }
 
+// Auth page guard: redirect logged-in users to dashboard
+// EXCEPT when they came from a password reset link (URL contains access_token)
+function AuthGuard() {
+  const { user, loading } = useAuth()
+  const location = useLocation()
+
+  if (loading) return null
+
+  // If the URL hash contains a recovery token, NEVER auto-redirect
+  // This handles the case where user navigates back to /auth after visiting /update-password
+  const hashParams = new URLSearchParams(window.location.hash.substring(1))
+  const isRecovery = hashParams.get('type') === 'recovery' || location.hash.includes('type=recovery')
+
+  if (user && !isRecovery) {
+    return <Navigate to="/" replace />
+  }
+
+  return <AuthPage />
+}
+
 function AppRoutes() {
-  const { user } = useAuth()
-
-  // Don't auto-redirect to dashboard if user is in the middle of a password reset
-  const inPasswordReset = sessionStorage.getItem(RESET_FLAG) === 'true'
-
   return (
     <Routes>
-      {/* Auth page: only redirect to dashboard if logged in AND NOT in password reset flow */}
-      <Route
-        path="/auth"
-        element={(user && !inPasswordReset) ? <Navigate to="/" replace /> : <AuthPage />}
-      />
-
-      {/* Update password: always accessible — handles its own session logic */}
+      <Route path="/auth" element={<AuthGuard />} />
+      {/* UpdatePasswordPage is always accessible — never redirect away from it */}
       <Route path="/update-password" element={<UpdatePasswordPage />} />
-
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/visualizer/:algorithmId" element={<ProtectedRoute><VisualizerPage /></ProtectedRoute>} />
       <Route path="/compare" element={<ProtectedRoute><ComparisonPage /></ProtectedRoute>} />

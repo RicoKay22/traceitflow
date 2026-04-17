@@ -6,7 +6,7 @@ import Dashboard from './pages/Dashboard'
 import VisualizerPage from './pages/VisualizerPage'
 import ComparisonPage from './pages/ComparisonPage'
 import NotFoundPage from './pages/NotFoundPage'
-import UpdatePasswordPage from './pages/UpdatePasswordPage'
+import UpdatePasswordPage, { RESET_FLAG } from './pages/UpdatePasswordPage'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -25,10 +25,21 @@ function ProtectedRoute({ children }) {
 
 function AppRoutes() {
   const { user } = useAuth()
+
+  // Don't auto-redirect to dashboard if user is in the middle of a password reset
+  const inPasswordReset = sessionStorage.getItem(RESET_FLAG) === 'true'
+
   return (
     <Routes>
-      <Route path="/auth" element={user ? <Navigate to="/" replace /> : <AuthPage />} />
+      {/* Auth page: only redirect to dashboard if logged in AND NOT in password reset flow */}
+      <Route
+        path="/auth"
+        element={(user && !inPasswordReset) ? <Navigate to="/" replace /> : <AuthPage />}
+      />
+
+      {/* Update password: always accessible — handles its own session logic */}
       <Route path="/update-password" element={<UpdatePasswordPage />} />
+
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/visualizer/:algorithmId" element={<ProtectedRoute><VisualizerPage /></ProtectedRoute>} />
       <Route path="/compare" element={<ProtectedRoute><ComparisonPage /></ProtectedRoute>} />

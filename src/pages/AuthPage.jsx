@@ -339,7 +339,7 @@ export default function AuthPage() {
                       </div>
                     ) : resetSent ? (
                       <div style={{ padding:'14px 16px', borderRadius:'8px', background:'#AAFF0011', border:'1px solid #AAFF0033', color:'#AAFF00', fontSize:'13px', fontFamily:'Space Mono,monospace' }}>
-                        ✓ If an account exists for {resetEmail}, a reset link has been sent. Check your inbox.
+                        ✓ If an account exists for {resetEmail}, a reset link has been sent. Check your inbox/spam folder.
                         <button type="button" onClick={() => { setResetMode(false); setResetSent(false); setResetEmail('') }}
                           style={{ display:'block', marginTop:'8px', background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', fontSize:'11px', fontFamily:'Space Mono,monospace' }}>
                           ← Back to login

@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 function PasswordStrengthHint({ password }) {
   if (!password) return null
@@ -14,20 +15,20 @@ function PasswordStrengthHint({ password }) {
   const passed = checks.filter(c => c.pass).length
   const barColor = passed <= 2 ? '#FF4444' : passed <= 3 ? '#FFB800' : passed <= 4 ? '#00FFD1' : '#AAFF00'
   return (
-    <div style={{ marginTop: '6px', marginBottom: '4px' }}>
-      <div style={{ display: 'flex', gap: '3px', marginBottom: '6px' }}>
+    <div style={{ marginTop:'6px', marginBottom:'4px' }}>
+      <div style={{ display:'flex', gap:'3px', marginBottom:'6px' }}>
         {[1,2,3,4,5].map(i => (
           <div key={i} style={{ flex:1, height:'3px', borderRadius:'2px', background: i<=passed ? barColor : 'var(--border)', transition:'background 0.2s' }} />
         ))}
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+      <div style={{ display:'flex', flexWrap:'wrap', gap:'4px' }}>
         {checks.map(c => (
           <span key={c.label} style={{
             fontSize:'10px', padding:'2px 7px', borderRadius:'4px',
             background: c.pass ? '#AAFF0018' : 'var(--bg-elevated)',
             color: c.pass ? '#AAFF00' : 'var(--text-muted)',
             border:`1px solid ${c.pass ? '#AAFF0033' : 'var(--border)'}`,
-            fontFamily:'Space Mono, monospace', transition:'all 0.2s',
+            fontFamily:'Space Mono,monospace', transition:'all 0.2s',
           }}>
             {c.pass ? '✓' : '·'} {c.label}
           </span>
@@ -42,65 +43,41 @@ function passwordIsStrong(pwd) {
 }
 
 export default function UpdatePasswordPage() {
-  const [password, setPassword]         = useState('')
-  const [confirm, setConfirm]           = useState('')
-  const [showPass, setShowPass]         = useState(false)
-  const [loading, setLoading]           = useState(false)
-  const [message, setMessage]           = useState('')
-  const [isSuccess, setIsSuccess]       = useState(false)
-  const [sessionReady, setSessionReady] = useState(false)
-  const [sessionError, setSessionError] = useState('')
+  const [password, setPassword]   = useState('')
+  const [confirm, setConfirm]     = useState('')
+  const [showPass, setShowPass]   = useState(false)
+  const [loading, setLoading]     = useState(false)
+  const [message, setMessage]     = useState('')
+  const [isSuccess, setIsSuccess] = useState(false)
   const navigate = useNavigate()
 
-  // Track whether we successfully updated the password
-  const passwordUpdatedRef = useRef(false)
-  // Store the recovery session so we can use it for updateUser
-  const recoverySessionRef = useRef(null)
+  // Use context — AuthContext's listener already handled PASSWORD_RECOVERY
+  // isRecoveryMode is true → session is ready → we can call updateUser
+  const { user, isRecoveryMode, clearRecoveryMode, signOut } = useAuth()
 
+  // Session is ready if we have a user AND we're in recovery mode
+  const sessionReady = !!(user && isRecoveryMode)
+
+  // Show error if no recovery session after 15 seconds
+  const [sessionError, setSessionError] = useState('')
   useEffect(() => {
-    // ONLY approach: listen for PASSWORD_RECOVERY from Supabase's own client
-    // Do NOT manually parse the hash — Supabase handles it automatically
-    // When the user lands on this page with the recovery link in the URL,
-    // Supabase detects the hash and fires PASSWORD_RECOVERY within ~1 second
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('Auth event:', event, !!session)
-      if (event === 'PASSWORD_RECOVERY') {
-        recoverySessionRef.current = session
-        setSessionReady(true)
-        setSessionError('')
+    const timer = setTimeout(() => {
+      if (!sessionReady && !isSuccess) {
+        setSessionError('Reset link expired or already used. Please request a new password reset.')
       }
-    })
+    }, 15000)
+    return () => clearTimeout(timer)
+  }, [sessionReady, isSuccess])
 
-    // Fallback: if already has a valid session (e.g. page refresh after recovery)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session && !sessionReady) {
-        recoverySessionRef.current = session
-        setSessionReady(true)
-      }
-    })
-
-    // Timeout: if no PASSWORD_RECOVERY event within 12 seconds, show error
-    const timeoutId = setTimeout(async () => {
-      if (!sessionReady) {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session) {
-          recoverySessionRef.current = session
-          setSessionReady(true)
-        } else {
-          setSessionError('Reset link expired or already used. Please request a new password reset link.')
-        }
-      }
-    }, 12000)
-
+  // If user navigates away WITHOUT updating, sign them out
+  useEffect(() => {
     return () => {
-      subscription.unsubscribe()
-      clearTimeout(timeoutId)
-      // If user navigated away without updating password, sign them out
-      if (!passwordUpdatedRef.current) {
-        supabase.auth.signOut()
+      if (!isSuccess) {
+        clearRecoveryMode()
+        signOut().catch(() => {})
       }
     }
-  }, [])
+  }, [isSuccess])
 
   const handleUpdate = async (e) => {
     e.preventDefault()
@@ -111,22 +88,16 @@ export default function UpdatePasswordPage() {
     setMessage('')
 
     try {
+      // Single direct call — session is already valid from AuthContext
       const { error } = await supabase.auth.updateUser({ password })
+      if (error) throw error
 
-      if (error) {
-        // If session expired mid-flow, give clear message
-        if (error.message?.includes('session') || error.message?.includes('expired') || error.message?.includes('Auth')) {
-          throw new Error('Your reset session expired. Please go back and request a new password reset link.')
-        }
-        throw error
-      }
-
-      // SUCCESS
-      passwordUpdatedRef.current = true
+      // SUCCESS — clear recovery mode, sign out, show success screen
+      clearRecoveryMode()
       setIsSuccess(true)
 
-      // Sign out in background — don't await, don't block the UI
-      supabase.auth.signOut().catch(() => {})
+      // Sign out in background
+      signOut().catch(() => {})
 
     } catch (err) {
       setMessage(err.message || 'Failed to update password. Please try again.')
@@ -137,19 +108,19 @@ export default function UpdatePasswordPage() {
 
   const isDisabled = !passwordIsStrong(password) || !confirm || password !== confirm
 
-  // Success screen
+  // ── Success screen ────────────────────────────────────────
   if (isSuccess) {
     return (
-      <div style={{ minHeight:'100vh', background:'var(--bg-base)', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px', fontFamily:'DM Sans,sans-serif' }}>
+      <div style={{ minHeight:'100vh', background:'var(--bg-base)', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px' }}>
         <div style={{ width:'100%', maxWidth:'420px', textAlign:'center' }}>
           <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'40px', justifyContent:'center' }}>
             <div style={{ width:'32px', height:'32px', background:'#AAFF00', color:'#0D0D0D', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:'11px', clipPath:'polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)' }}>TIF</div>
             <span style={{ fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:'15px', letterSpacing:'0.18em', color:'var(--text-primary)' }}>TRACEITFLOW</span>
           </div>
-          <div style={{ background:'var(--bg-surface)', border:'1px solid #AAFF0033', borderRadius:'14px', padding:'40px 32px' }}>
-            <div style={{ fontSize:'48px', marginBottom:'16px' }}>✓</div>
+          <div style={{ background:'var(--bg-surface)', border:'1px solid #AAFF0033', borderRadius:'14px', padding:'40px 32px', boxShadow:'0 0 40px #AAFF0011' }}>
+            <div style={{ width:'64px', height:'64px', borderRadius:'50%', background:'#AAFF0018', border:'2px solid #AAFF00', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px', fontSize:'28px' }}>✓</div>
             <h2 style={{ fontFamily:'Space Mono,monospace', fontSize:'20px', fontWeight:700, color:'#AAFF00', marginBottom:'12px' }}>Password Updated!</h2>
-            <p style={{ fontSize:'14px', color:'var(--text-muted)', marginBottom:'24px', lineHeight:1.6 }}>
+            <p style={{ fontSize:'14px', color:'var(--text-muted)', marginBottom:'28px', lineHeight:1.6, fontFamily:'DM Sans,sans-serif' }}>
               Your TraceItFlow password has been changed successfully. Sign in with your new password to continue.
             </p>
             <button
@@ -159,11 +130,13 @@ export default function UpdatePasswordPage() {
               ← GO TO LOGIN
             </button>
           </div>
+          <p style={{ textAlign:'center', fontSize:'10px', color:'var(--text-muted)', marginTop:'24px', fontFamily:'Space Mono,monospace', letterSpacing:'0.12em' }}>TRACEITFLOW · BY RICO KAY</p>
         </div>
       </div>
     )
   }
 
+  // ── Main form ─────────────────────────────────────────────
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg-base)', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px', fontFamily:'DM Sans,sans-serif' }}>
       <div style={{ width:'100%', maxWidth:'420px' }}>
@@ -177,14 +150,29 @@ export default function UpdatePasswordPage() {
           <h2 style={{ fontFamily:'Space Mono,monospace', fontSize:'20px', fontWeight:700, color:'var(--text-primary)', marginBottom:'6px' }}>Set new password.</h2>
           <p style={{ fontSize:'13px', color:'var(--text-muted)', marginBottom:'24px' }}>Choose a strong password for your TraceItFlow account.</p>
 
+          {/* Session error */}
           {sessionError && (
-            <div style={{ padding:'16px', borderRadius:'10px', background:'#FF444411', border:'1px solid #FF444433', color:'#FF4444', fontFamily:'DM Sans,sans-serif', fontSize:'13px', marginBottom:'16px', lineHeight:1.5 }}>
+            <div style={{ padding:'16px', borderRadius:'10px', background:'#FF444411', border:'1px solid #FF444433', color:'#FF4444', fontSize:'13px', marginBottom:'16px', lineHeight:1.5 }}>
               {sessionError}
               <button onClick={() => navigate('/auth')} style={{ display:'block', marginTop:'12px', padding:'8px 16px', background:'#AAFF00', color:'#0D0D0D', border:'none', borderRadius:'6px', cursor:'pointer', fontFamily:'Space Mono,monospace', fontSize:'11px', fontWeight:700 }}>← Back to Login</button>
             </div>
           )}
 
-          {!sessionError && sessionReady && (
+          {/* Waiting for session */}
+          {!sessionReady && !sessionError && (
+            <div style={{ textAlign:'center', padding:'32px 20px' }}>
+              <div style={{ fontFamily:'Space Mono,monospace', fontSize:'12px', color:'var(--text-muted)', marginBottom:'12px' }}>Verifying reset link...</div>
+              <div style={{ display:'flex', gap:'4px', justifyContent:'center' }}>
+                {[0,1,2].map(i => (
+                  <div key={i} style={{ width:'6px', height:'6px', borderRadius:'50%', background:'#AAFF00', animation:'pulse 1.2s ease-in-out infinite', animationDelay:`${i * 0.2}s` }} />
+                ))}
+              </div>
+              <style>{`@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}`}</style>
+            </div>
+          )}
+
+          {/* Form — shown only when session is genuinely ready */}
+          {sessionReady && !sessionError && (
             <form onSubmit={handleUpdate} style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
               <div>
                 <label style={{ display:'block', fontSize:'10px', letterSpacing:'0.2em', color:'var(--text-muted)', fontFamily:'Space Mono,monospace', marginBottom:'6px' }}>NEW PASSWORD</label>
@@ -192,7 +180,7 @@ export default function UpdatePasswordPage() {
                   <input
                     type={showPass ? 'text' : 'password'} value={password}
                     onChange={e => setPassword(e.target.value)}
-                    placeholder="Min. 8 characters" required
+                    placeholder="Min. 8 characters" required autoFocus
                     style={{ width:'100%', padding:'12px 44px 12px 16px', background:'var(--bg-elevated)', border:'1px solid var(--border)', borderRadius:'8px', color:'var(--text-primary)', fontSize:'14px', fontFamily:'DM Sans,sans-serif', outline:'none', boxSizing:'border-box', transition:'border-color 0.2s' }}
                     onFocus={e => e.target.style.borderColor='#AAFF00'}
                     onBlur={e => e.target.style.borderColor='var(--border)'}
@@ -221,11 +209,6 @@ export default function UpdatePasswordPage() {
               {message && (
                 <div style={{ padding:'12px 14px', borderRadius:'8px', background:'#FF444411', border:'1px solid #FF444433', color:'#FF4444', fontSize:'13px', fontFamily:'DM Sans,sans-serif', lineHeight:1.5 }}>
                   ✕ {message}
-                  {message.includes('session expired') || message.includes('reset session') ? (
-                    <button onClick={() => navigate('/auth')} style={{ display:'block', marginTop:'8px', padding:'7px 14px', background:'#AAFF00', color:'#0D0D0D', border:'none', borderRadius:'6px', cursor:'pointer', fontFamily:'Space Mono,monospace', fontSize:'11px', fontWeight:700 }}>
-                      ← Request New Reset Link
-                    </button>
-                  ) : null}
                 </div>
               )}
 
@@ -243,18 +226,6 @@ export default function UpdatePasswordPage() {
                 {loading ? 'UPDATING...' : isDisabled ? 'COMPLETE REQUIREMENTS ABOVE' : 'UPDATE PASSWORD →'}
               </button>
             </form>
-          )}
-
-          {!sessionReady && !sessionError && (
-            <div style={{ textAlign:'center', padding:'32px 20px' }}>
-              <div style={{ fontFamily:'Space Mono,monospace', fontSize:'12px', color:'var(--text-muted)', marginBottom:'12px' }}>Verifying reset link...</div>
-              <div style={{ display:'flex', gap:'4px', justifyContent:'center' }}>
-                {[0,1,2].map(i => (
-                  <div key={i} style={{ width:'6px', height:'6px', borderRadius:'50%', background:'#AAFF00', animation:'pulse 1.2s ease-in-out infinite', animationDelay:`${i * 0.2}s` }} />
-                ))}
-              </div>
-              <style>{`@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}`}</style>
-            </div>
           )}
         </div>
 

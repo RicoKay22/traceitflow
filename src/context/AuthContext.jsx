@@ -4,9 +4,11 @@ import { supabase } from '../lib/supabase'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser]               = useState(null)
+  const [profile, setProfile]         = useState(null)
+  const [loading, setLoading]         = useState(true)
+  // True when Supabase fires PASSWORD_RECOVERY — prevents auto-redirect to dashboard
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -15,7 +17,27 @@ export function AuthProvider({ children }) {
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // THE ONLY onAuthStateChange listener in the entire app
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[AuthContext] event:', event)
+
+      if (event === 'PASSWORD_RECOVERY') {
+        // Recovery link clicked — user is signed in with recovery session
+        // Set recovery mode so App.jsx doesn't redirect to dashboard
+        setIsRecoveryMode(true)
+        setUser(session?.user ?? null)
+        if (session?.user) fetchProfile(session.user.id)
+        return
+      }
+
+      if (event === 'SIGNED_OUT') {
+        setUser(null)
+        setProfile(null)
+        setIsRecoveryMode(false)
+        return
+      }
+
+      // For all other events (SIGNED_IN, TOKEN_REFRESHED, etc.)
       setUser(session?.user ?? null)
       if (session?.user) {
         await ensureProfile(session.user)
@@ -34,40 +56,25 @@ export function AuthProvider({ children }) {
     if (data) setProfile(data)
   }
 
-  // SAFE: never overwrites existing username
   async function ensureProfile(user) {
     if (!user) return
-
-    // Check if profile exists — select username too so we can preserve it
     const { data: existing } = await supabase
       .from('profiles').select('id, username, email').eq('id', user.id).single()
 
     if (!existing) {
-      // No profile row at all — create one
-      // For Google OAuth users, use their display name; for email users, use email prefix
       const username =
         user.user_metadata?.full_name?.split(' ')[0] ||
         user.user_metadata?.name?.split(' ')[0] ||
-        user.email?.split('@')[0] ||
-        'User'
-
-      // INSERT not upsert — if profile already exists, do nothing
+        user.email?.split('@')[0] || 'User'
       await supabase.from('profiles').insert({
-        id: user.id,
-        username,
+        id: user.id, username,
         email: user.email?.toLowerCase(),
-        preferred_speed: 1.0,
-        last_algorithm: 'bubbleSort',
-        theme: 'dark',
-      }).select()
-    } else {
-      // Profile exists — ONLY fill in missing email, NEVER touch username
-      if (!existing.email && user.email) {
-        await supabase
-          .from('profiles')
-          .update({ email: user.email.toLowerCase() })
-          .eq('id', user.id)
-      }
+        preferred_speed: 1.0, last_algorithm: 'bubbleSort', theme: 'dark',
+      })
+    } else if (!existing.email && user.email) {
+      await supabase.from('profiles')
+        .update({ email: user.email.toLowerCase() })
+        .eq('id', user.id)
     }
   }
 
@@ -75,14 +82,10 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
     if (data.user) {
-      // INSERT not upsert — preserve username always
       await supabase.from('profiles').insert({
-        id: data.user.id,
-        username: username.trim(),
+        id: data.user.id, username: username.trim(),
         email: email.toLowerCase().trim(),
-        preferred_speed: 1.0,
-        last_algorithm: 'bubbleSort',
-        theme: 'dark',
+        preferred_speed: 1.0, last_algorithm: 'bubbleSort', theme: 'dark',
       })
     }
     return data
@@ -104,8 +107,16 @@ export function AuthProvider({ children }) {
     setProfile(prev => ({ ...prev, ...updates }))
   }
 
+  // Called by UpdatePasswordPage after successful password update
+  function clearRecoveryMode() {
+    setIsRecoveryMode(false)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut, updatePreferences }}>
+    <AuthContext.Provider value={{
+      user, profile, loading, isRecoveryMode,
+      signUp, signIn, signOut, updatePreferences, clearRecoveryMode,
+    }}>
       {children}
     </AuthContext.Provider>
   )

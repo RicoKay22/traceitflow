@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
 
 function PasswordStrengthHint({ password }) {
   if (!password) return null
@@ -49,35 +48,48 @@ export default function UpdatePasswordPage() {
   const [loading, setLoading]     = useState(false)
   const [message, setMessage]     = useState('')
   const [isSuccess, setIsSuccess] = useState(false)
+  const [sessionReady, setSessionReady] = useState(false)
+  const [sessionError, setSessionError] = useState('')
   const navigate = useNavigate()
 
-  // Use context — AuthContext's listener already handled PASSWORD_RECOVERY
-  // isRecoveryMode is true → session is ready → we can call updateUser
-  const { user, isRecoveryMode, clearRecoveryMode, signOut } = useAuth()
-
-  // Session is ready if we have a user AND we're in recovery mode
-  const sessionReady = !!(user && isRecoveryMode)
-
-  // Show error if no recovery session after 15 seconds
-  const [sessionError, setSessionError] = useState('')
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!sessionReady && !isSuccess) {
+    const setupSession = async () => {
+      const hash = window.location.hash
+
+      // Extract tokens from URL hash — Supabase puts them there after email click
+      if (hash && hash.includes('access_token')) {
+        const params = new URLSearchParams(hash.replace('#', ''))
+        const access_token  = params.get('access_token')
+        const refresh_token = params.get('refresh_token')
+
+        if (access_token && refresh_token) {
+          // Explicitly set the session — guarantees updateUser will work
+          const { error } = await supabase.auth.setSession({ access_token, refresh_token })
+          if (error) {
+            setSessionError('Reset link is invalid or has expired. Please request a new one.')
+            return
+          }
+          setSessionReady(true)
+          return
+        }
+      }
+
+      // No hash tokens — check if there is already a valid session
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        setSessionReady(true)
+        return
+      }
+
+      // Nothing found — show error after 12s to allow for slow loads
+      const timer = setTimeout(() => {
         setSessionError('Reset link expired or already used. Please request a new password reset.')
-      }
-    }, 15000)
-    return () => clearTimeout(timer)
-  }, [sessionReady, isSuccess])
-
-  // If user navigates away WITHOUT updating, sign them out
-  useEffect(() => {
-    return () => {
-      if (!isSuccess) {
-        clearRecoveryMode()
-        signOut().catch(() => {})
-      }
+      }, 12000)
+      return () => clearTimeout(timer)
     }
-  }, [isSuccess])
+
+    setupSession()
+  }, [])
 
   const handleUpdate = async (e) => {
     e.preventDefault()
@@ -88,16 +100,12 @@ export default function UpdatePasswordPage() {
     setMessage('')
 
     try {
-      // Single direct call — session is already valid from AuthContext
       const { error } = await supabase.auth.updateUser({ password })
       if (error) throw error
 
-      // SUCCESS — clear recovery mode, sign out, show success screen
-      clearRecoveryMode()
+      // SUCCESS — sign out silently, show success screen
       setIsSuccess(true)
-
-      // Sign out in background
-      signOut().catch(() => {})
+      supabase.auth.signOut().catch(() => {})
 
     } catch (err) {
       setMessage(err.message || 'Failed to update password. Please try again.')
@@ -121,11 +129,13 @@ export default function UpdatePasswordPage() {
             <div style={{ width:'64px', height:'64px', borderRadius:'50%', background:'#AAFF0018', border:'2px solid #AAFF00', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px', fontSize:'28px' }}>✓</div>
             <h2 style={{ fontFamily:'Space Mono,monospace', fontSize:'20px', fontWeight:700, color:'#AAFF00', marginBottom:'12px' }}>Password Updated!</h2>
             <p style={{ fontSize:'14px', color:'var(--text-muted)', marginBottom:'28px', lineHeight:1.6, fontFamily:'DM Sans,sans-serif' }}>
-              Your TraceItFlow password has been changed successfully. Sign in with your new password to continue.
+              Your password has been changed successfully. Sign in with your new password to continue.
             </p>
             <button
               onClick={() => navigate('/auth')}
-              style={{ width:'100%', padding:'14px', background:'#AAFF00', color:'#0D0D0D', border:'none', borderRadius:'8px', cursor:'pointer', fontFamily:'Space Mono,monospace', fontSize:'13px', fontWeight:700, letterSpacing:'0.12em', boxShadow:'0 0 20px #AAFF0033' }}
+              style={{ width:'100%', padding:'14px', background:'#AAFF00', color:'#0D0D0D', border:'none', borderRadius:'8px', cursor:'pointer', fontFamily:'Space Mono,monospace', fontSize:'13px', fontWeight:700, letterSpacing:'0.12em', boxShadow:'0 0 20px #AAFF0033', transition:'all 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.boxShadow='0 0 32px #AAFF0055'}
+              onMouseLeave={e => e.currentTarget.style.boxShadow='0 0 20px #AAFF0033'}
             >
               ← GO TO LOGIN
             </button>
@@ -150,15 +160,13 @@ export default function UpdatePasswordPage() {
           <h2 style={{ fontFamily:'Space Mono,monospace', fontSize:'20px', fontWeight:700, color:'var(--text-primary)', marginBottom:'6px' }}>Set new password.</h2>
           <p style={{ fontSize:'13px', color:'var(--text-muted)', marginBottom:'24px' }}>Choose a strong password for your TraceItFlow account.</p>
 
-          {/* Session error */}
           {sessionError && (
-            <div style={{ padding:'16px', borderRadius:'10px', background:'#FF444411', border:'1px solid #FF444433', color:'#FF4444', fontSize:'13px', marginBottom:'16px', lineHeight:1.5 }}>
+            <div style={{ padding:'16px', borderRadius:'10px', background:'#FF444411', border:'1px solid #FF444433', color:'#FF4444', fontSize:'13px', marginBottom:'16px', lineHeight:1.5, fontFamily:'DM Sans,sans-serif' }}>
               {sessionError}
               <button onClick={() => navigate('/auth')} style={{ display:'block', marginTop:'12px', padding:'8px 16px', background:'#AAFF00', color:'#0D0D0D', border:'none', borderRadius:'6px', cursor:'pointer', fontFamily:'Space Mono,monospace', fontSize:'11px', fontWeight:700 }}>← Back to Login</button>
             </div>
           )}
 
-          {/* Waiting for session */}
           {!sessionReady && !sessionError && (
             <div style={{ textAlign:'center', padding:'32px 20px' }}>
               <div style={{ fontFamily:'Space Mono,monospace', fontSize:'12px', color:'var(--text-muted)', marginBottom:'12px' }}>Verifying reset link...</div>
@@ -171,7 +179,6 @@ export default function UpdatePasswordPage() {
             </div>
           )}
 
-          {/* Form — shown only when session is genuinely ready */}
           {sessionReady && !sessionError && (
             <form onSubmit={handleUpdate} style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
               <div>

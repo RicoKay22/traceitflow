@@ -4,11 +4,9 @@ import { supabase } from '../lib/supabase'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser]               = useState(null)
-  const [profile, setProfile]         = useState(null)
-  const [loading, setLoading]         = useState(true)
-  // True when Supabase fires PASSWORD_RECOVERY — prevents auto-redirect to dashboard
-  const [isRecoveryMode, setIsRecoveryMode] = useState(false)
+  const [user, setUser]       = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -17,27 +15,15 @@ export function AuthProvider({ children }) {
       setLoading(false)
     })
 
-    // THE ONLY onAuthStateChange listener in the entire app
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[AuthContext] event:', event)
-
-      if (event === 'PASSWORD_RECOVERY') {
-        // Recovery link clicked — user is signed in with recovery session
-        // Set recovery mode so App.jsx doesn't redirect to dashboard
-        setIsRecoveryMode(true)
-        setUser(session?.user ?? null)
-        if (session?.user) fetchProfile(session.user.id)
-        return
-      }
-
+      // For SIGNED_OUT: clear everything
       if (event === 'SIGNED_OUT') {
         setUser(null)
         setProfile(null)
-        setIsRecoveryMode(false)
         return
       }
-
-      // For all other events (SIGNED_IN, TOKEN_REFRESHED, etc.)
+      // For all other events: update user state
+      // App.jsx AuthGuard handles whether to redirect based on URL
       setUser(session?.user ?? null)
       if (session?.user) {
         await ensureProfile(session.user)
@@ -60,7 +46,6 @@ export function AuthProvider({ children }) {
     if (!user) return
     const { data: existing } = await supabase
       .from('profiles').select('id, username, email').eq('id', user.id).single()
-
     if (!existing) {
       const username =
         user.user_metadata?.full_name?.split(' ')[0] ||
@@ -107,16 +92,8 @@ export function AuthProvider({ children }) {
     setProfile(prev => ({ ...prev, ...updates }))
   }
 
-  // Called by UpdatePasswordPage after successful password update
-  function clearRecoveryMode() {
-    setIsRecoveryMode(false)
-  }
-
   return (
-    <AuthContext.Provider value={{
-      user, profile, loading, isRecoveryMode,
-      signUp, signIn, signOut, updatePreferences, clearRecoveryMode,
-    }}>
+    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut, updatePreferences }}>
       {children}
     </AuthContext.Provider>
   )

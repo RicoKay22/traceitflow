@@ -7,6 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isRecovery, setIsRecovery] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -16,14 +17,19 @@ export function AuthProvider({ children }) {
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // For SIGNED_OUT: clear everything
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecovery(true)
+        setUser(session?.user ?? null)
+        if (session?.user) fetchProfile(session.user.id)
+        return
+      }
       if (event === 'SIGNED_OUT') {
         setUser(null)
         setProfile(null)
+        setIsRecovery(false)
         return
       }
-      // For all other events: update user state
-      // App.jsx AuthGuard handles whether to redirect based on URL
+      // SIGNED_IN, TOKEN_REFRESHED etc
       setUser(session?.user ?? null)
       if (session?.user) {
         await ensureProfile(session.user)
@@ -83,6 +89,7 @@ export function AuthProvider({ children }) {
   }
 
   async function signOut() {
+    setIsRecovery(false)
     await supabase.auth.signOut()
   }
 
@@ -93,7 +100,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signUp, signIn, signOut, updatePreferences }}>
+    <AuthContext.Provider value={{ user, profile, loading, isRecovery, signUp, signIn, signOut, updatePreferences }}>
       {children}
     </AuthContext.Provider>
   )

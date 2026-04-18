@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import AuthPage from './pages/AuthPage'
@@ -23,30 +23,13 @@ function ProtectedRoute({ children }) {
   return user ? children : <Navigate to="/auth" replace />
 }
 
-// Checks URL hash for recovery token — works even after navigation
-function isRecoveryUrl() {
-  const hash = window.location.hash
-  if (!hash) return false
-  const params = new URLSearchParams(hash.replace('#', ''))
-  return params.get('type') === 'recovery' || hash.includes('type=recovery')
-}
-
 function AuthGuard() {
-  const { user, loading } = useAuth()
-  const location = useLocation()
-
+  const { user, loading, isRecovery } = useAuth()
   if (loading) return null
-
-  // If user is logged in BUT this is a recovery flow — don't redirect
-  // The recovery URL hash tells us this is a reset, not a normal login
-  if (user && isRecoveryUrl()) {
-    // Redirect to update-password page, carrying the hash
-    return <Navigate to={`/update-password${location.hash}`} replace />
-  }
-
-  // Normal logged-in user → go to dashboard
+  // Logged in during a recovery flow → go to update-password, not dashboard
+  if (user && isRecovery) return <Navigate to="/update-password" replace />
+  // Normal logged in → dashboard
   if (user) return <Navigate to="/" replace />
-
   return <AuthPage />
 }
 
@@ -54,7 +37,6 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={<AuthGuard />} />
-      {/* UpdatePasswordPage: always accessible, handles its own session */}
       <Route path="/update-password" element={<UpdatePasswordPage />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/visualizer/:algorithmId" element={<ProtectedRoute><VisualizerPage /></ProtectedRoute>} />

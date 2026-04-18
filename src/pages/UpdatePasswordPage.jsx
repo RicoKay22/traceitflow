@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
 
 function PasswordStrengthHint({ password }) {
   if (!password) return null
@@ -49,37 +48,52 @@ export default function UpdatePasswordPage() {
   const [loading, setLoading]           = useState(false)
   const [message, setMessage]           = useState('')
   const [isSuccess, setIsSuccess]       = useState(false)
+  const [sessionReady, setSessionReady] = useState(false)
   const [sessionError, setSessionError] = useState('')
   const navigate = useNavigate()
-  const { user, signOut } = useAuth()
 
-  // Session is ready when AuthContext has a user AND we came from a recovery URL
-  // We check the hash — if type=recovery is in there, this is a reset flow
-  const hashHasRecovery = window.location.hash.includes('type=recovery') ||
-                          window.location.hash.includes('access_token')
-  
-  // sessionReady: user is set by AuthContext (from auto-processed hash by Supabase)
-  // Don't call setSession manually — Supabase processes the hash automatically
-  const sessionReady = !!user
-
-  // Timeout: if no user after 20 seconds, show error
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!sessionReady && !isSuccess) {
-        setSessionError('Reset link expired or already used. Please request a new one.')
-      }
-    }, 20000)
-    return () => clearTimeout(timer)
-  }, [sessionReady, isSuccess])
+    // AuthContext skipped its normal init for this page
+    // This page owns 100% of auth handling for the recovery flow
+    const setupRecoverySession = async () => {
+      const hash = window.location.hash
 
-  // Sign out when leaving page without updating (security)
-  useEffect(() => {
-    return () => {
-      if (!isSuccess) {
-        signOut().catch(() => {})
+      if (hash && hash.includes('access_token')) {
+        const params = new URLSearchParams(hash.replace('#', ''))
+        const access_token  = params.get('access_token')
+        const refresh_token = params.get('refresh_token')
+        const type          = params.get('type')
+
+        if (access_token && refresh_token) {
+          const { error } = await supabase.auth.setSession({ access_token, refresh_token })
+
+          if (error) {
+            setSessionError('Reset link is invalid or has expired. Please request a new one.')
+            return
+          }
+
+          // Clean URL immediately after setting session to prevent reuse
+          window.history.replaceState({}, document.title, '/update-password')
+          setSessionReady(true)
+          return
+        }
       }
+
+      // No hash — check for existing valid session (e.g. page refresh after hash was cleaned)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        setSessionReady(true)
+        return
+      }
+
+      // Nothing — show error after timeout
+      setTimeout(() => {
+        setSessionError('Reset link expired or already used. Please request a new password reset.')
+      }, 12000)
     }
-  }, [isSuccess])
+
+    setupRecoverySession()
+  }, [])
 
   const handleUpdate = async (e) => {
     e.preventDefault()
@@ -90,11 +104,20 @@ export default function UpdatePasswordPage() {
     setMessage('')
 
     try {
+      // Verify session is still valid before updating
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        setMessage('Session expired. Please request a new reset link.')
+        setLoading(false)
+        return
+      }
+
       const { error } = await supabase.auth.updateUser({ password })
       if (error) throw error
 
+      // Success — sign out cleanly and show success screen
       setIsSuccess(true)
-      signOut().catch(() => {})
+      await supabase.auth.signOut()
 
     } catch (err) {
       setMessage(err.message || 'Failed to update password. Please try again.')
@@ -105,12 +128,12 @@ export default function UpdatePasswordPage() {
 
   const isDisabled = !passwordIsStrong(password) || !confirm || password !== confirm
 
-  // ── Success ───────────────────────────────────────────────
+  // ── Success screen ────────────────────────────────────────
   if (isSuccess) {
     return (
       <div style={{ minHeight:'100vh', background:'var(--bg-base)', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px' }}>
         <div style={{ width:'100%', maxWidth:'420px', textAlign:'center' }}>
-          <Logo />
+          <TIFLogo />
           <div style={{ background:'var(--bg-surface)', border:'1px solid #AAFF0033', borderRadius:'14px', padding:'40px 32px', boxShadow:'0 0 40px #AAFF0011' }}>
             <div style={{ width:'64px', height:'64px', borderRadius:'50%', background:'#AAFF0018', border:'2px solid #AAFF00', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px', fontSize:'28px' }}>✓</div>
             <h2 style={{ fontFamily:'Space Mono,monospace', fontSize:'20px', fontWeight:700, color:'#AAFF00', marginBottom:'12px' }}>Password Updated!</h2>
@@ -119,12 +142,14 @@ export default function UpdatePasswordPage() {
             </p>
             <button
               onClick={() => navigate('/auth')}
-              style={{ width:'100%', padding:'14px', background:'#AAFF00', color:'#0D0D0D', border:'none', borderRadius:'8px', cursor:'pointer', fontFamily:'Space Mono,monospace', fontSize:'13px', fontWeight:700, letterSpacing:'0.12em', boxShadow:'0 0 20px #AAFF0033' }}
+              style={{ width:'100%', padding:'14px', background:'#AAFF00', color:'#0D0D0D', border:'none', borderRadius:'8px', cursor:'pointer', fontFamily:'Space Mono,monospace', fontSize:'13px', fontWeight:700, letterSpacing:'0.12em', boxShadow:'0 0 20px #AAFF0033', transition:'all 0.2s' }}
+              onMouseEnter={e => e.currentTarget.style.boxShadow='0 0 32px #AAFF0055'}
+              onMouseLeave={e => e.currentTarget.style.boxShadow='0 0 20px #AAFF0033'}
             >
               ← GO TO LOGIN
             </button>
           </div>
-          <Footer />
+          <TIFFooter />
         </div>
       </div>
     )
@@ -134,7 +159,7 @@ export default function UpdatePasswordPage() {
   return (
     <div style={{ minHeight:'100vh', background:'var(--bg-base)', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px', fontFamily:'DM Sans,sans-serif' }}>
       <div style={{ width:'100%', maxWidth:'420px' }}>
-        <Logo />
+        <TIFLogo />
         <div style={{ background:'var(--bg-surface)', border:'1px solid var(--border)', borderRadius:'14px', padding:'32px' }}>
           <h2 style={{ fontFamily:'Space Mono,monospace', fontSize:'20px', fontWeight:700, color:'var(--text-primary)', marginBottom:'6px' }}>Set new password.</h2>
           <p style={{ fontSize:'13px', color:'var(--text-muted)', marginBottom:'24px' }}>Choose a strong password for your TraceItFlow account.</p>
@@ -212,13 +237,13 @@ export default function UpdatePasswordPage() {
             </form>
           )}
         </div>
-        <Footer />
+        <TIFFooter />
       </div>
     </div>
   )
 }
 
-function Logo() {
+function TIFLogo() {
   return (
     <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'40px', justifyContent:'center' }}>
       <div style={{ width:'32px', height:'32px', background:'#AAFF00', color:'#0D0D0D', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Space Mono,monospace', fontWeight:700, fontSize:'11px', clipPath:'polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)' }}>TIF</div>
@@ -227,7 +252,7 @@ function Logo() {
   )
 }
 
-function Footer() {
+function TIFFooter() {
   return (
     <p style={{ textAlign:'center', fontSize:'10px', color:'var(--text-muted)', marginTop:'24px', fontFamily:'Space Mono,monospace', letterSpacing:'0.12em' }}>
       TRACEITFLOW · BY RICO KAY

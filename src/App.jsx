@@ -24,11 +24,8 @@ function ProtectedRoute({ children }) {
 }
 
 function AuthGuard() {
-  const { user, loading, isRecovery } = useAuth()
+  const { user, loading } = useAuth()
   if (loading) return null
-  // Logged in during a recovery flow → go to update-password, not dashboard
-  if (user && isRecovery) return <Navigate to="/update-password" replace />
-  // Normal logged in → dashboard
   if (user) return <Navigate to="/" replace />
   return <AuthPage />
 }
@@ -37,6 +34,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={<AuthGuard />} />
+      {/* UpdatePasswordPage is completely isolated — handles its own auth */}
       <Route path="/update-password" element={<UpdatePasswordPage />} />
       <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/visualizer/:algorithmId" element={<ProtectedRoute><VisualizerPage /></ProtectedRoute>} />

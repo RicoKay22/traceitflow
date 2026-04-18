@@ -1,15 +1,27 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [user, setUser]         = useState(null)
+  const [profile, setProfile]   = useState(null)
+  const [loading, setLoading]   = useState(true)
   const [isRecovery, setIsRecovery] = useState(false)
+  const isProcessingAuth = useRef(false)
 
   useEffect(() => {
+    // If user landed on the recovery URL, skip ALL normal auth init
+    // This prevents the lock contention between setSession + getSession + onAuthStateChange
+    const isRecoveryFlow = window.location.pathname === '/update-password' ||
+                           window.location.hash.includes('type=recovery')
+
+    if (isRecoveryFlow) {
+      setLoading(false)
+      return // Don't set up any listeners — UpdatePasswordPage handles everything
+    }
+
+    // Normal flow only
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       if (session?.user) fetchProfile(session.user.id)
@@ -17,25 +29,39 @@ export function AuthProvider({ children }) {
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setIsRecovery(true)
-        setUser(session?.user ?? null)
-        if (session?.user) fetchProfile(session.user.id)
-        return
-      }
-      if (event === 'SIGNED_OUT') {
-        setUser(null)
-        setProfile(null)
-        setIsRecovery(false)
-        return
-      }
-      // SIGNED_IN, TOKEN_REFRESHED etc
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        await ensureProfile(session.user)
-        fetchProfile(session.user.id)
-      } else {
-        setProfile(null)
+      // Prevent overlapping auth requests
+      if (isProcessingAuth.current) return
+      isProcessingAuth.current = true
+
+      try {
+        if (event === 'SIGNED_OUT') {
+          setUser(null)
+          setProfile(null)
+          setIsRecovery(false)
+          return
+        }
+
+        if (event === 'PASSWORD_RECOVERY') {
+          setIsRecovery(true)
+          setUser(session?.user ?? null)
+          if (session?.user) fetchProfile(session.user.id)
+          return
+        }
+
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user)
+          await ensureProfile(session.user)
+          fetchProfile(session.user.id)
+          return
+        }
+
+        if (event === 'TOKEN_REFRESHED' && session?.user) {
+          setUser(session.user)
+          return
+        }
+
+      } finally {
+        isProcessingAuth.current = false
       }
     })
 
@@ -89,8 +115,12 @@ export function AuthProvider({ children }) {
   }
 
   async function signOut() {
+    // Hard reset local state immediately — don't wait for server
+    setUser(null)
+    setProfile(null)
     setIsRecovery(false)
-    await supabase.auth.signOut()
+    // Fire server signout in background
+    supabase.auth.signOut().catch(() => {})
   }
 
   async function updatePreferences(updates) {

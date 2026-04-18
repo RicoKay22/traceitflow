@@ -111,6 +111,12 @@ export function AuthProvider({ children }) {
   async function signIn(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
+    // Immediately set user so AuthGuard redirects to dashboard right away
+    // Don't wait for onAuthStateChange which fires asynchronously
+    if (data?.user) {
+      setUser(data.user)
+      fetchProfile(data.user.id)
+    }
     return data
   }
 
